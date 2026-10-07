@@ -11,9 +11,10 @@ async fn health() -> Json<Health> {
 async fn main() {
     let app = Router::new().route("/api/health", get(health));
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
+    let addr = std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".into());
+    let listener = tokio::net::TcpListener::bind(&addr)
         .await
-        .expect("bind 127.0.0.1:8080");
+        .unwrap_or_else(|e| panic!("bind {addr}: {e}"));
     println!("listening on http://{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.expect("serve");
 }
