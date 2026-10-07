@@ -1,5 +1,5 @@
 ﻿use gloo_net::http::Request;
-use shared::Health;
+use agora_shared::Health;
 use yew::prelude::*;
 
 #[component]
@@ -25,7 +25,7 @@ fn App() -> Html {
     html! {
         <main>
             <h1>{ "Agora" }</h1>
-            <p>{ format!("backend: {}", *status) }</p>
+            <p>{ format!("api: {}", *status) }</p>
         </main>
     }
 }

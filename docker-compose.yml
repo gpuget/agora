@@ -1,18 +1,18 @@
 services:
-  backend:
+  agora-api:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: agora-api/Dockerfile
     ports:
       - "8080:8080"
     restart: unless-stopped
 
-  frontend:
+  agora-web:
     build:
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: agora-web/Dockerfile
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      - agora-api
     restart: unless-stopped

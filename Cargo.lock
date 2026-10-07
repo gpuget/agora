@@ -3,6 +3,32 @@
 version = 4
 
 [[package]]
+name = "agora-api"
+version = "0.1.0"
+dependencies = [
+ "agora-shared",
+ "axum",
+ "tokio",
+]
+
+[[package]]
+name = "agora-shared"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "agora-web"
+version = "0.1.0"
+dependencies = [
+ "agora-shared",
+ "gloo-net 0.7.0",
+ "wasm-bindgen-futures",
+ "yew",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -58,15 +84,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "backend"
-version = "0.1.0"
-dependencies = [
- "axum",
- "shared",
- "tokio",
 ]
 
 [[package]]
@@ -141,16 +158,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "frontend"
-version = "0.1.0"
-dependencies = [
- "gloo-net 0.7.0",
- "shared",
- "wasm-bindgen-futures",
- "yew",
 ]
 
 [[package]]
@@ -901,13 +908,6 @@ dependencies = [
  "form_urlencoded",
  "itoa",
  "ryu",
- "serde",
-]
-
-[[package]]
-name = "shared"
-version = "0.1.0"
-dependencies = [
  "serde",
 ]
 

@@ -2,9 +2,9 @@
 
 Rust workspace with three crates:
 
-- `backend`: REST API (axum), listens on port 8080.
-- `frontend`: web app (Yew, built with Trunk), served on port 3000.
-- `shared`: types shared by backend and frontend.
+- `agora-api`: REST API (axum), listens on port 8080.
+- `agora-web`: web app (Yew, built with Trunk), served on port 3000.
+- `agora-shared`: types shared by agora-api and agora-web.
 
 ## Setup
 
@@ -18,22 +18,22 @@ Prerequisites:
 
 ## Run locally
 
-Backend (terminal 1):
+API (terminal 1):
 
 ```
-cargo run -p backend
+cargo run -p agora-api
 ```
 
 The API is at <http://127.0.0.1:8080/api/health>. Set `BIND_ADDR` to change the listen address (default `127.0.0.1:8080`).
 
-Frontend (terminal 2):
+Web (terminal 2):
 
 ```
-cd frontend
+cd agora-web
 trunk serve
 ```
 
-The app is at <http://127.0.0.1:3000>. `trunk serve` builds the wasm itself, so no separate `cargo build` is needed. Requests to `/api/` are proxied to the backend (see `frontend/Trunk.toml`).
+The app is at <http://127.0.0.1:3000>. `trunk serve` builds the wasm itself, so no separate `cargo build` is needed. Requests to `/api/` are proxied to the API (see `agora-web/Trunk.toml`).
 
 ## Run with Docker
 
@@ -41,16 +41,16 @@ The app is at <http://127.0.0.1:3000>. `trunk serve` builds the wasm itself, so 
 docker compose up --build
 ```
 
-- Frontend: <http://localhost:3000> (nginx, proxies `/api/` to the backend).
-- Backend: <http://localhost:8080>.
+- Web: <http://localhost:3000> (nginx, proxies `/api/` to the API).
+- API: <http://localhost:8080>.
 
-Each service has a multi-stage Dockerfile (`backend/Dockerfile`, `frontend/Dockerfile`). Build context is the repository root.
+Each service has a multi-stage Dockerfile (`agora-api/Dockerfile`, `agora-web/Dockerfile`). Build context is the repository root.
 
-## Production build of the frontend
+## Production build of the web app
 
 ```
-cd frontend
+cd agora-web
 trunk build --release
 ```
 
-Output goes to `frontend/dist`.
+Output goes to `agora-web/dist`.

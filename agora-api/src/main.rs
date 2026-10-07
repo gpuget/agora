@@ -1,5 +1,5 @@
 use axum::{Json, Router, routing::get};
-use shared::Health;
+use agora_shared::Health;
 
 async fn health() -> Json<Health> {
     Json(Health {

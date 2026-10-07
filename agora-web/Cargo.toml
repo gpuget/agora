@@ -1,10 +1,10 @@
 [package]
-name = "frontend"
+name = "agora-web"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 gloo-net = "0.7.0"
-shared = { version = "0.1.0", path = "../shared" }
+agora-shared = { version = "0.1.0", path = "../agora-shared" }
 wasm-bindgen-futures = "0.4.79"
 yew = { version = "0.23.0", features = ["csr"] }
