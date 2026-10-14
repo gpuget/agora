@@ -1,0 +1,20 @@
+[package]
+name = "game-core"
+version.workspace = true
+edition.workspace = true
+
+[features]
+# In-memory adapters for the outbound ports of the game.
+memory = []
+
+[dependencies]
+agora-api.workspace = true
+agora-domain.workspace = true
+game-api.workspace = true
+game-domain.workspace = true
+game-spi.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+agora-core = { workspace = true, features = ["memory"] }
+tokio = { workspace = true, features = ["macros", "rt"] }

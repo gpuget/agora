@@ -25,9 +25,13 @@ Le jeu est un client de confiance. Les joueurs n'appellent jamais Agora directem
 | `agora-api` | Ports entrants : trait `AuctionApi` (cas d'usage) et commandes | `agora-domain` |
 | `agora-spi` | Ports sortants : `Inventory`, `Wallet`, `MoneySink`, `AuctionRepository`, `Clock` | `agora-domain` |
 | `agora-core` | `AuctionService` : implémente `AuctionApi` à partir des ports SPI. Feature `memory` : adaptateurs en mémoire (repository, faux ports, horloge manuelle) | `agora-domain`, `agora-api`, `agora-spi` |
-| `game` | Jeu de démonstration : implémente les ports SPI (joueurs, or, inventaires), expose un serveur HTTP (axum), déclenche le règlement | tout |
-| `game-dto` | Requêtes et réponses HTTP entre `game` et `ui` | `agora-domain` |
-| `ui` | Interface web (Yew) branchée sur le HTTP de `game` | `agora-domain`, `game-dto` |
+| `game-domain` | Domaine du jeu : `Player` (or, objets), `CatalogEntry`, `GameError` | `agora-domain` |
+| `game-api` | Ports entrants du jeu : `GameApi` (cas d'usage joueur) et `LedgerApi` (mouvements d'or et d'objets demandés par Agora) | `game-domain`, `agora-api` |
+| `game-spi` | Ports sortants du jeu : `PlayerRepository`, `Catalog`, `HouseRegistry`, `Treasury`, et `AuctionApi` d'Agora (système externe pour le jeu) | `game-domain`, `agora-api` |
+| `game-core` | `GameService` et `LedgerService`. Feature `memory` : adaptateurs en mémoire | `game-api`, `game-spi` |
+| `game-server` | Binaire : adaptateurs (HTTP axum, pont qui implémente les ports SPI d'Agora via `LedgerApi`, horloge système), câblage, déclenchement du règlement | tout |
+| `game-dto` | Requêtes et réponses HTTP entre `game-server` et `game-ui` | `agora-domain` |
+| `game-ui` | Interface web (Yew) branchée sur le HTTP de `game-server` | `agora-domain`, `game-dto` |
 
 Les ports sont asynchrones (`async fn` dans les traits, futures `Send`). `AuctionService` est générique sur ses ports : pas de `dyn`.
 
@@ -98,10 +102,11 @@ Cible : outbox transactionnelle. Les effets externes sont écrits en base dans l
 
 ## 9. Jeu de démonstration
 
-- Joueurs, or et inventaires en mémoire, catalogue d'objets avec leur valeur de base.
+- Le jeu suit lui aussi une clean architecture : Agora est pour lui un système externe (port sortant `AuctionApi`), et Agora pilote son grand livre (`LedgerApi`) via un adaptateur pont.
+- Joueurs, or et inventaires en mémoire, catalogue d'objets avec leur valeur de base. La valeur de base est lue dans le catalogue par `GameService::sell`, jamais reçue du client.
 - Deux maisons : « Alliance » (commission 5 %) et « Neutre » (commission 15 %).
 - Le règlement tourne toutes les secondes.
-- HTTP sur `127.0.0.1:8080`, préfixe `/api`. L'interface `ui` choisit le joueur courant dans une liste (pas d'authentification).
+- HTTP sur `127.0.0.1:8080`, préfixe `/api`. L'interface `game-ui` choisit le joueur courant dans une liste (pas d'authentification).
 
 ## 10. Critères d'acceptation
 
@@ -114,7 +119,7 @@ Cible : outbox transactionnelle. Les effets externes sont écrits en base dans l
 
 - **Pannes** : aucune protection (section 8). Si un port échoue au milieu d'un cas d'usage, de l'or ou un objet peut être perdu ou dupliqué.
 - **Idempotence** : l'`OpId` est transmis à chaque appel `Inventory`, `Wallet` et `MoneySink`, mais ni les adaptateurs en mémoire ni le jeu de démo ne dédupliquent encore un `OpId` déjà appliqué.
-- **Persistance** : le repository, les joueurs, l'or et les inventaires sont en mémoire. Tout l'état est perdu au redémarrage du serveur `game`.
+- **Persistance** : le repository, les joueurs, l'or et les inventaires sont en mémoire. Tout l'état est perdu au redémarrage du serveur `game-server`.
 - **Authentification** : aucune. L'interface choisit le joueur dans une liste, et l'API HTTP du jeu accepte n'importe quel `PlayerRef`.
 - **Règlement** : `settle_expired` traite au plus 100 ventes par appel ; le surplus est traité aux appels suivants. Le règlement à l'expiration est couvert par les tests de `agora-core`, mais n'a pas été vérifié de bout en bout via l'API HTTP.
 - **Attributs** : `attributes` est stocké et renvoyé tel quel, mais ignoré par `InMemoryInventory` et par le jeu de démo, qui identifient un objet seulement par `item_type`.

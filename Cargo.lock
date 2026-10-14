@@ -257,21 +257,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "game"
+name = "game-api"
+version = "0.1.0"
+dependencies = [
+ "agora-api",
+ "agora-domain",
+ "game-domain",
+]
+
+[[package]]
+name = "game-core"
 version = "0.1.0"
 dependencies = [
  "agora-api",
  "agora-core",
  "agora-domain",
- "agora-spi",
- "axum",
- "game-dto",
- "serde_json",
+ "game-api",
+ "game-domain",
+ "game-spi",
  "tokio",
- "tower-http",
  "tracing",
- "tracing-subscriber",
- "uuid",
+]
+
+[[package]]
+name = "game-domain"
+version = "0.1.0"
+dependencies = [
+ "agora-domain",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -280,6 +293,49 @@ version = "0.1.0"
 dependencies = [
  "agora-domain",
  "serde",
+]
+
+[[package]]
+name = "game-server"
+version = "0.1.0"
+dependencies = [
+ "agora-core",
+ "agora-domain",
+ "agora-spi",
+ "axum",
+ "game-api",
+ "game-core",
+ "game-domain",
+ "game-dto",
+ "game-spi",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "game-spi"
+version = "0.1.0"
+dependencies = [
+ "agora-api",
+ "agora-domain",
+ "game-domain",
+]
+
+[[package]]
+name = "game-ui"
+version = "0.1.0"
+dependencies = [
+ "agora-domain",
+ "game-dto",
+ "gloo-net 0.7.0",
+ "gloo-timers",
+ "serde",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "yew",
 ]
 
 [[package]]
@@ -1321,20 +1377,6 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
-]
-
-[[package]]
-name = "ui"
-version = "0.1.0"
-dependencies = [
- "agora-domain",
- "game-dto",
- "gloo-net 0.7.0",
- "gloo-timers",
- "serde",
- "wasm-bindgen-futures",
- "web-sys",
- "yew",
 ]
 
 [[package]]

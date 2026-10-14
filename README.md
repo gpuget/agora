@@ -2,15 +2,19 @@
 
 Auction house inspired by World of Warcraft. The auction core is independent of any game: it defines ports, the game implements them. See [docs/PRD.md](docs/PRD.md).
 
-Rust workspace:
+Rust workspace. Crates of the auction core live in `agora/`, crates of the demo game (server and web ui) in `game/`; the crate `agora-core` is in `agora/core`, `game-server` in `game/server`, and so on.
 
 - `agora-domain`: domain types and pure rules (`Money`, `Listing`, `HouseConfig`, errors).
 - `agora-api`: inbound ports, the `AuctionApi` use cases.
 - `agora-spi`: outbound ports (`Inventory`, `Wallet`, `MoneySink`, `AuctionRepository`, `Clock`).
 - `agora-core`: `AuctionService`, implements `agora-api` on top of `agora-spi`. Feature `memory`: in-memory adapters.
-- `game`: demo game server. Implements the outbound ports, hosts the core, exposes HTTP on port 8080.
-- `game-dto`: HTTP requests and responses shared by `game` and `ui`.
-- `ui`: web app (Yew, built with Trunk), served on port 3000.
+- `game-domain`: demo game domain (`Player`, `CatalogEntry`, `GameError`).
+- `game-api`: inbound ports of the game: `GameApi` (player use cases) and `LedgerApi` (gold and item movements requested by Agora).
+- `game-spi`: outbound ports of the game (`PlayerRepository`, `Catalog`, `HouseRegistry`, `Treasury`) plus Agora's `AuctionApi`.
+- `game-core`: `GameService` and `LedgerService`. Feature `memory`: in-memory adapters.
+- `game-server`: demo game server. Adapters (HTTP on port 8080, bridge implementing Agora's outbound ports with `LedgerApi`, system clock) and wiring.
+- `game-dto`: HTTP requests and responses shared by `game-server` and `game-ui`.
+- `game-ui`: web app (Yew, built with Trunk), served on port 3000.
 
 ## Setup
 
@@ -24,7 +28,7 @@ Prerequisites:
 ## Tests
 
 ```
-cargo test -p agora-domain -p agora-core
+cargo test -p agora-domain -p agora-core -p game-domain -p game-core
 ```
 
 ## Run locally
@@ -32,27 +36,27 @@ cargo test -p agora-domain -p agora-core
 Game server (terminal 1):
 
 ```
-cargo run -p game
+cargo run -p game-server
 ```
 
 The API is under <http://127.0.0.1:8080/api/>. Set `BIND_ADDR` to change the listen address (default `127.0.0.1:8080`). State is in memory and lost on restart. Expired listings are settled every second.
 
-Logs go to stdout. Default filter: `game=info,tower_http=info` (business events, rejected requests, settlement). Set `RUST_LOG=game=debug,tower_http=debug` to also log every call the core makes to the game ports (with its `OpId`) and every HTTP response.
+Logs go to stdout. Default filter: `game_server=info,game_core=info,tower_http=info` (business events, rejected requests, settlement). Set `RUST_LOG=game_server=debug,game_core=debug,tower_http=debug` to also log every ledger call Agora makes to the game (with its `OpId`) and every HTTP response.
 
 UI (terminal 2):
 
 ```
-cd ui
+cd game/ui
 trunk serve
 ```
 
-The app is at <http://127.0.0.1:3000>. Requests to `/api/` are proxied to the game server (see `ui/Trunk.toml`). Pick a player in the header: there is no authentication.
+The app is at <http://127.0.0.1:3000>. Requests to `/api/` are proxied to the game server (see `game/ui/Trunk.toml`). Pick a player in the header: there is no authentication.
 
 ## Production build of the UI
 
 ```
-cd ui
+cd game/ui
 trunk build --release
 ```
 
-Output goes to `ui/dist`.
+Output goes to `game/ui/dist`.
