@@ -11,6 +11,8 @@ use agora_core::AuctionService;
 use agora_core::memory::InMemoryAuctionRepository;
 use agora_domain::{Bps, DurationOption, HouseConfig, Money};
 use game_dto::{CatalogEntry, DurationView, HouseView};
+use tracing::{error, info};
+use tracing_subscriber::EnvFilter;
 
 use crate::http::AppState;
 use crate::world::{SystemClock, World};
@@ -20,6 +22,9 @@ pub type Auction = AuctionService<InMemoryAuctionRepository, World, World, World
 /// 1 gold = 100 silver = 10 000 copper. Amounts are in copper.
 const GOLD: u64 = 10_000;
 const SETTLE_EVERY: Duration = Duration::from_secs(1);
+/// Log filter when `RUST_LOG` is not set. `RUST_LOG=game=debug,tower_http=debug` shows
+/// port calls and every HTTP response.
+const DEFAULT_LOG: &str = "game=info,tower_http=info";
 
 fn catalog() -> Vec<CatalogEntry> {
     [
@@ -82,6 +87,12 @@ fn seed_players(world: &World) {
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG)),
+        )
+        .init();
+
     let world = World::default();
     seed_players(&world);
 
@@ -114,6 +125,7 @@ async fn main() {
                 })
                 .collect(),
         };
+        info!(house = %view.id, name = %view.name, commission_bps = view.commission, "auction house created");
         houses.push(view);
     }
 
@@ -124,8 +136,8 @@ async fn main() {
             tick.tick().await;
             match settler.settle_expired().await {
                 Ok(0) => {}
-                Ok(n) => println!("settled {n} listing(s)"),
-                Err(e) => eprintln!("settlement failed: {e}"),
+                Ok(settled) => info!(settled, "expired listings settled"),
+                Err(error) => error!(%error, "settlement failed"),
             }
         }
     });
@@ -142,6 +154,6 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .unwrap_or_else(|e| panic!("bind {addr}: {e}"));
-    println!("listening on http://{}", listener.local_addr().unwrap());
+    info!("listening on http://{}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.expect("serve");
 }

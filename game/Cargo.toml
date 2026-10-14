@@ -12,4 +12,7 @@ game-dto.workspace = true
 axum.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["full"] }
+tower-http = { version = "0.7.1", features = ["trace"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid.workspace = true

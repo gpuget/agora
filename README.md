@@ -37,6 +37,8 @@ cargo run -p game
 
 The API is under <http://127.0.0.1:8080/api/>. Set `BIND_ADDR` to change the listen address (default `127.0.0.1:8080`). State is in memory and lost on restart. Expired listings are settled every second.
 
+Logs go to stdout. Default filter: `game=info,tower_http=info` (business events, rejected requests, settlement). Set `RUST_LOG=game=debug,tower_http=debug` to also log every call the core makes to the game ports (with its `OpId`) and every HTTP response.
+
 UI (terminal 2):
 
 ```

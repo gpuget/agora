@@ -7,6 +7,22 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use agora_domain::{HouseId, ItemStack, ItemType, Money, OpId, PlayerRef, PortError, Timestamp};
 use agora_spi::{Clock, Inventory, MoneySink, SinkReason, Wallet};
 use game_dto::{ItemCount, PlayerView};
+use tracing::{debug, info, warn};
+
+/// Logs one port call made by the auction core, then returns its result.
+fn traced(
+    result: Result<(), PortError>,
+    call: &'static str,
+    op: OpId,
+    player: &PlayerRef,
+    detail: String,
+) -> Result<(), PortError> {
+    match &result {
+        Ok(()) => debug!(call, %op, %player, %detail, "port call applied"),
+        Err(error) => warn!(call, %op, %player, %detail, %error, "port call failed"),
+    }
+    result
+}
 
 #[derive(Default)]
 struct Player {
@@ -80,11 +96,11 @@ impl World {
 impl Inventory for World {
     async fn withdraw_item(
         &self,
-        _op: OpId,
+        op: OpId,
         player: &PlayerRef,
         item: &ItemStack,
     ) -> Result<(), PortError> {
-        self.with_player(player, |p| {
+        let result = self.with_player(player, |p| {
             let held = p
                 .items
                 .get_mut(&item.item_type)
@@ -92,54 +108,61 @@ impl Inventory for World {
                 .ok_or(PortError::ItemUnavailable)?;
             *held -= item.quantity;
             Ok(())
-        })
+        });
+        let detail = format!("{} x{}", item.item_type, item.quantity);
+        traced(result, "inventory.withdraw_item", op, player, detail)
     }
 
     async fn deposit_item(
         &self,
-        _op: OpId,
+        op: OpId,
         player: &PlayerRef,
         item: &ItemStack,
     ) -> Result<(), PortError> {
-        self.with_player(player, |p| {
+        let result = self.with_player(player, |p| {
             *p.items.entry(item.item_type.clone()).or_default() += item.quantity;
             Ok(())
-        })
+        });
+        let detail = format!("{} x{}", item.item_type, item.quantity);
+        traced(result, "inventory.deposit_item", op, player, detail)
     }
 }
 
 impl Wallet for World {
-    async fn debit(&self, _op: OpId, player: &PlayerRef, amount: Money) -> Result<(), PortError> {
-        self.with_player(player, |p| {
+    async fn debit(&self, op: OpId, player: &PlayerRef, amount: Money) -> Result<(), PortError> {
+        let result = self.with_player(player, |p| {
             p.gold = p
                 .gold
                 .checked_sub(amount)
                 .ok_or(PortError::InsufficientFunds)?;
             Ok(())
-        })
+        });
+        traced(result, "wallet.debit", op, player, amount.0.to_string())
     }
 
-    async fn credit(&self, _op: OpId, player: &PlayerRef, amount: Money) -> Result<(), PortError> {
-        self.with_player(player, |p| {
+    async fn credit(&self, op: OpId, player: &PlayerRef, amount: Money) -> Result<(), PortError> {
+        let result = self.with_player(player, |p| {
             p.gold = p
                 .gold
                 .checked_add(amount)
                 .ok_or_else(|| PortError::Other("gold overflow".into()))?;
             Ok(())
-        })
+        });
+        traced(result, "wallet.credit", op, player, amount.0.to_string())
     }
 }
 
 impl MoneySink for World {
     async fn absorb(
         &self,
-        _op: OpId,
-        _house: HouseId,
+        op: OpId,
+        house: HouseId,
         amount: Money,
-        _reason: SinkReason,
+        reason: SinkReason,
     ) -> Result<(), PortError> {
         let mut state = self.0.lock().unwrap();
         state.destroyed = Money(state.destroyed.0.saturating_add(amount.0));
+        info!(%op, %house, amount = amount.0, ?reason, "money destroyed");
         Ok(())
     }
 }
