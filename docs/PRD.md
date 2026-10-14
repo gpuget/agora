@@ -109,3 +109,12 @@ Cible : outbox transactionnelle. Les effets externes sont écrits en base dans l
 - Un conflit de version pendant une enchère ne débite pas l'enchérisseur deux fois.
 - `agora-domain`, `agora-api`, `agora-spi` et `agora-core` ne dépendent ni de tokio, ni d'axum, ni d'un format de transport.
 - Depuis l'interface : mettre en vente, enchérir, acheter, annuler, et voir le règlement à l'expiration.
+
+## 11. Limites connues
+
+- **Pannes** : aucune protection (section 8). Si un port échoue au milieu d'un cas d'usage, de l'or ou un objet peut être perdu ou dupliqué.
+- **Idempotence** : l'`OpId` est transmis à chaque appel `Inventory`, `Wallet` et `MoneySink`, mais ni les adaptateurs en mémoire ni le jeu de démo ne dédupliquent encore un `OpId` déjà appliqué.
+- **Persistance** : le repository, les joueurs, l'or et les inventaires sont en mémoire. Tout l'état est perdu au redémarrage du serveur `game`.
+- **Authentification** : aucune. L'interface choisit le joueur dans une liste, et l'API HTTP du jeu accepte n'importe quel `PlayerRef`.
+- **Règlement** : `settle_expired` traite au plus 100 ventes par appel ; le surplus est traité aux appels suivants. Le règlement à l'expiration est couvert par les tests de `agora-core`, mais n'a pas été vérifié de bout en bout via l'API HTTP.
+- **Attributs** : `attributes` est stocké et renvoyé tel quel, mais ignoré par `InMemoryInventory` et par le jeu de démo, qui identifient un objet seulement par `item_type`.
