@@ -1,9 +1,7 @@
 [package]
 name = "agora-api"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-axum = "0.8.9"
-agora-shared = { version = "0.1.0", path = "../agora-shared" }
-tokio = { version = "1.53.2", features = ["full"] }
+agora-domain.workspace = true

@@ -1,0 +1,18 @@
+[package]
+name = "agora-core"
+version.workspace = true
+edition.workspace = true
+
+[features]
+# In-memory adapters: repository, fake ports and a manual clock.
+memory = []
+
+[dependencies]
+agora-domain.workspace = true
+agora-api.workspace = true
+agora-spi.workspace = true
+uuid = { workspace = true, features = ["v7"] }
+
+[dev-dependencies]
+serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }

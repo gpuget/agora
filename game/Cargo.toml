@@ -1,0 +1,15 @@
+[package]
+name = "game"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agora-domain.workspace = true
+agora-api.workspace = true
+agora-spi.workspace = true
+agora-core = { workspace = true, features = ["memory"] }
+game-dto.workspace = true
+axum.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["full"] }
+uuid.workspace = true

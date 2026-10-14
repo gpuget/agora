@@ -1,0 +1,14 @@
+[package]
+name = "ui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agora-domain.workspace = true
+game-dto.workspace = true
+gloo-net = "0.7.0"
+gloo-timers = "0.3.0"
+serde.workspace = true
+wasm-bindgen-futures = "0.4.79"
+web-sys = { version = "0.3.106", features = ["HtmlInputElement", "HtmlSelectElement"] }
+yew = { version = "0.23.0", features = ["csr"] }
