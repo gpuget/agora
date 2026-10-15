@@ -1,22 +1,29 @@
-use agora_domain::{ItemType, Money, PlayerRef};
+use agora_domain::{Bps, ItemType, Money, PlayerRef};
 use game_dto::{CreateListingRequest, HouseView};
 use yew::prelude::*;
 
 use crate::api::Action;
-use crate::format::{input_value, select_value};
+use crate::format::{input_value, money, select_value};
+
+#[derive(Clone, PartialEq)]
+pub struct SellItem {
+    pub item_type: ItemType,
+    pub name: String,
+    pub held: u32,
+    pub base_value: Money,
+}
 
 #[derive(Properties, PartialEq)]
 pub struct SellFormProps {
     pub house: HouseView,
     pub seller: PlayerRef,
-    /// Item type, display name, quantity held.
-    pub items: Vec<(ItemType, String, u32)>,
+    pub items: Vec<SellItem>,
     pub on_action: Callback<Action>,
 }
 
 #[component]
 pub fn SellForm(props: &SellFormProps) -> Html {
-    let item = use_state(|| props.items.first().map(|(t, _, _)| t.clone()));
+    let item = use_state(|| props.items.first().map(|i| i.item_type.clone()));
     let quantity = use_state(|| "1".to_string());
     let start = use_state(String::new);
     let buyout = use_state(String::new);
@@ -68,13 +75,33 @@ pub fn SellForm(props: &SellFormProps) -> Html {
         })
     };
 
+    // Same formula as the auction core: base value x quantity x rate x duration multiplier.
+    let deposit = (|| {
+        let base_value = props
+            .items
+            .iter()
+            .find(|i| Some(&i.item_type) == item.as_ref())?
+            .base_value;
+        let quantity = quantity.parse::<u64>().ok()?;
+        let multiplier = props
+            .house
+            .durations
+            .iter()
+            .find(|d| d.secs == *duration)?
+            .deposit_multiplier;
+        base_value
+            .checked_mul(quantity)?
+            .apply_bps(Bps(props.house.deposit))
+            .checked_mul(u64::from(multiplier))
+    })();
+
     html! {
         <form class="sell" onsubmit={on_submit}>
             <h2>{ "Vendre" }</h2>
             <label>{ "Objet" }
                 <select onchange={on_item}>
-                    { for props.items.iter().map(|(t, name, held)| html! {
-                        <option value={t.to_string()} selected={item.as_ref() == Some(t)}>{ format!("{name} ({held})") }</option>
+                    { for props.items.iter().map(|i| html! {
+                        <option value={i.item_type.to_string()} selected={item.as_ref() == Some(&i.item_type)}>{ format!("{} ({})", i.name, i.held) }</option>
                     }) }
                 </select>
             </label>
@@ -96,6 +123,9 @@ pub fn SellForm(props: &SellFormProps) -> Html {
                     }) }
                 </select>
             </label>
+            <p class="deposit">
+                { format!("Dépôt : {}", deposit.map_or_else(|| "-".to_string(), money)) }
+            </p>
             <button type="submit">{ "Mettre en vente" }</button>
         </form>
     }

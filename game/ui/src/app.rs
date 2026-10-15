@@ -6,8 +6,8 @@ use gloo_timers::callback::Interval;
 use yew::prelude::*;
 
 use crate::api::{Action, get, perform};
-use crate::components::{ListingRow, SellForm};
-use crate::format::{item_name, money, select_value};
+use crate::components::{ListingRow, SellForm, SellItem};
+use crate::format::{base_value, item_name, money, select_value};
 
 const REFRESH_MS: u32 = 2_000;
 
@@ -218,7 +218,12 @@ pub fn App() -> Html {
                                 key={format!("{}-{}", view.player, current_house.id)}
                                 house={current_house.clone()}
                                 seller={view.player.clone()}
-                                items={view.items.iter().map(|i| (i.item_type.clone(), item_name(&catalog, &i.item_type), i.quantity)).collect::<Vec<_>>()}
+                                items={view.items.iter().map(|i| SellItem {
+                                    item_type: i.item_type.clone(),
+                                    name: item_name(&catalog, &i.item_type),
+                                    held: i.quantity,
+                                    base_value: base_value(&catalog, &i.item_type),
+                                }).collect::<Vec<_>>()}
                                 on_action={on_action.clone()}
                             />
                         }

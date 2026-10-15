@@ -103,6 +103,7 @@ async fn houses(State(game): State<Arc<Game>>) -> ApiResult<Vec<HouseView>> {
                 id: h.id,
                 name: h.config.name,
                 commission: h.config.commission.0,
+                deposit: h.config.deposit.0,
                 durations: h
                     .config
                     .durations

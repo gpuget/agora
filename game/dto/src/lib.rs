@@ -35,6 +35,8 @@ pub struct HouseView {
     pub name: String,
     /// Basis points.
     pub commission: u32,
+    /// Basis points of the stack base value, before the duration multiplier.
+    pub deposit: u32,
     pub durations: Vec<DurationView>,
 }
 
