@@ -1,0 +1,268 @@
+use std::rc::Rc;
+
+use agora_domain::{HouseId, ItemType, Money, PlayerRef};
+use game_dto::{CatalogEntry, HouseView, ListingsResponse, PlayerView};
+use gloo_timers::callback::Interval;
+use yew::prelude::*;
+
+use crate::api::{Action, get, perform};
+use crate::components::{ListingRow, SellForm};
+use crate::format::{item_name, money, select_value};
+
+const REFRESH_MS: u32 = 2_000;
+
+#[derive(Clone, Copy, PartialEq)]
+enum Filter {
+    All,
+    MySales,
+    MyBids,
+}
+
+/// Bumped to trigger a refresh.
+#[derive(Default, PartialEq)]
+struct Reload(u32);
+
+impl Reducible for Reload {
+    type Action = ();
+
+    fn reduce(self: Rc<Self>, _: ()) -> Rc<Self> {
+        Rc::new(Reload(self.0.wrapping_add(1)))
+    }
+}
+
+#[component]
+pub fn App() -> Html {
+    let catalog = use_state(Vec::<CatalogEntry>::new);
+    let houses = use_state(Vec::<HouseView>::new);
+    let players = use_state(Vec::<PlayerView>::new);
+    let sink = use_state(|| Money::ZERO);
+    let player = use_state(|| None::<PlayerRef>);
+    let house = use_state(|| None::<HouseId>);
+    let filter = use_state(|| Filter::All);
+    let item_filter = use_state(|| None::<ItemType>);
+    let listings = use_state(|| None::<ListingsResponse>);
+    let message = use_state(|| None::<(bool, String)>);
+    let reload = use_reducer(Reload::default);
+
+    {
+        let (catalog, houses, house, player, message) = (
+            catalog.clone(),
+            houses.clone(),
+            house.clone(),
+            player.clone(),
+            message.clone(),
+        );
+        use_effect_with((), move |_| {
+            wasm_bindgen_futures::spawn_local(async move {
+                let loaded = async {
+                    catalog.set(get("/api/catalog", vec![]).await?);
+                    let all_houses: Vec<HouseView> = get("/api/houses", vec![]).await?;
+                    house.set(all_houses.first().map(|h| h.id));
+                    houses.set(all_houses);
+                    let all_players: Vec<PlayerView> = get("/api/players", vec![]).await?;
+                    player.set(all_players.first().map(|p| p.player.clone()));
+                    Ok::<_, String>(())
+                };
+                if let Err(e) = loaded.await {
+                    message.set(Some((false, e)));
+                }
+            });
+        });
+    }
+
+    {
+        let reload = reload.dispatcher();
+        use_effect_with((), move |_| {
+            let interval = Interval::new(REFRESH_MS, move || reload.dispatch(()));
+            move || drop(interval)
+        });
+    }
+
+    {
+        let (players, sink, listings, message) = (
+            players.clone(),
+            sink.clone(),
+            listings.clone(),
+            message.clone(),
+        );
+        let deps = (
+            reload.0,
+            *house,
+            (*player).clone(),
+            *filter,
+            (*item_filter).clone(),
+        );
+        use_effect_with(deps, move |(_, house, player, filter, item_filter)| {
+            let (house, player, filter, item_filter) =
+                (*house, player.clone(), *filter, item_filter.clone());
+            wasm_bindgen_futures::spawn_local(async move {
+                let loaded = async {
+                    players.set(get("/api/players", vec![]).await?);
+                    sink.set(get("/api/sink", vec![]).await?);
+                    let Some(house) = house else { return Ok(()) };
+                    let mut query = Vec::new();
+                    if let Some(item_type) = item_filter {
+                        query.push(("item_type", item_type.0));
+                    }
+                    match (filter, player) {
+                        (Filter::MySales, Some(me)) => query.push(("seller", me.0)),
+                        (Filter::MyBids, Some(me)) => query.push(("high_bidder", me.0)),
+                        _ => {}
+                    }
+                    listings.set(Some(
+                        get(&format!("/api/houses/{house}/listings"), query).await?,
+                    ));
+                    Ok::<_, String>(())
+                };
+                if let Err(e) = loaded.await {
+                    message.set(Some((false, e)));
+                }
+            });
+        });
+    }
+
+    let on_action = {
+        let (player, message, reload) = (player.clone(), message.clone(), reload.dispatcher());
+        Callback::from(move |action: Action| {
+            let Some(me) = (*player).clone() else { return };
+            let (message, reload) = (message.clone(), reload.clone());
+            wasm_bindgen_futures::spawn_local(async move {
+                let result = perform(action, me).await;
+                message.set(Some(match result {
+                    Ok(text) => (true, text),
+                    Err(text) => (false, text),
+                }));
+                reload.dispatch(());
+            });
+        })
+    };
+
+    let on_player = {
+        let player = player.clone();
+        Callback::from(move |e: Event| player.set(Some(PlayerRef(select_value(&e)))))
+    };
+    let on_house = {
+        let (house, houses) = (house.clone(), houses.clone());
+        Callback::from(move |e: Event| {
+            let value = select_value(&e);
+            house.set(
+                houses
+                    .iter()
+                    .find(|h| h.id.to_string() == value)
+                    .map(|h| h.id),
+            );
+        })
+    };
+    let on_item_filter = {
+        let item_filter = item_filter.clone();
+        Callback::from(move |e: Event| {
+            let value = select_value(&e);
+            item_filter.set((!value.is_empty()).then_some(ItemType(value)));
+        })
+    };
+    let tab = |value: Filter, label: &str| {
+        let filter = filter.clone();
+        let class = if *filter == value {
+            "tab active"
+        } else {
+            "tab"
+        };
+        html! { <button class={class} onclick={move |_| filter.set(value)}>{ label }</button> }
+    };
+
+    let me = (*player).clone();
+    let my_view = me
+        .as_ref()
+        .and_then(|me| players.iter().find(|p| &p.player == me).cloned());
+    let current_house = house.and_then(|id| houses.iter().find(|h| h.id == id).cloned());
+
+    html! {
+        <main>
+            <header>
+                <h1>{ "Agora" }</h1>
+                <label>{ "Joueur " }
+                    <select onchange={on_player}>
+                        { for players.iter().map(|p| html! {
+                            <option value={p.player.to_string()} selected={Some(&p.player) == me.as_ref()}>{ p.player.to_string() }</option>
+                        }) }
+                    </select>
+                </label>
+                <label>{ "Hôtel des ventes " }
+                    <select onchange={on_house}>
+                        { for houses.iter().map(|h| html! {
+                            <option value={h.id.to_string()} selected={Some(h.id) == *house}>
+                                { format!("{} (commission {} %)", h.name, f64::from(h.commission) / 100.0) }
+                            </option>
+                        }) }
+                    </select>
+                </label>
+                <span class="sink">{ format!("Or retiré du jeu : {}", money(*sink)) }</span>
+            </header>
+
+            if let Some((ok, text)) = (*message).clone() {
+                <p class={if ok { "message ok" } else { "message error" }}>{ text }</p>
+            }
+
+            <div class="layout">
+                <aside>
+                    if let Some(view) = my_view.clone() {
+                        <h2>{ "Mon personnage" }</h2>
+                        <p>{ format!("Or : {}", money(view.gold)) }</p>
+                        <ul>
+                            { for view.items.iter().map(|i| html! {
+                                <li>{ format!("{} x{}", item_name(&catalog, &i.item_type), i.quantity) }</li>
+                            }) }
+                        </ul>
+                        if let Some(current_house) = current_house.clone() {
+                            <SellForm
+                                key={format!("{}-{}", view.player, current_house.id)}
+                                house={current_house.clone()}
+                                seller={view.player.clone()}
+                                items={view.items.iter().map(|i| (i.item_type.clone(), item_name(&catalog, &i.item_type), i.quantity)).collect::<Vec<_>>()}
+                                on_action={on_action.clone()}
+                            />
+                        }
+                    }
+                </aside>
+
+                <section>
+                    <div class="filters">
+                        { tab(Filter::All, "Toutes les ventes") }
+                        { tab(Filter::MySales, "Mes ventes") }
+                        { tab(Filter::MyBids, "Mes enchères") }
+                        <select onchange={on_item_filter}>
+                            <option value="" selected={item_filter.is_none()}>{ "Tous les objets" }</option>
+                            { for catalog.iter().map(|e| html! {
+                                <option value={e.item_type.to_string()} selected={item_filter.as_ref() == Some(&e.item_type)}>{ e.name.clone() }</option>
+                            }) }
+                        </select>
+                    </div>
+                    if let (Some(response), Some(me)) = ((*listings).clone(), me.clone()) {
+                        <p class="count">{ format!("{} vente(s)", response.page.total) }</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>{ "Objet" }</th><th>{ "Qté" }</th><th>{ "Vendeur" }</th>
+                                    <th>{ "Enchère / u" }</th><th>{ "Achat immédiat / u" }</th>
+                                    <th>{ "Meilleur enchérisseur" }</th><th>{ "Temps restant" }</th><th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                { for response.page.items.iter().map(|l| html! {
+                                    <ListingRow
+                                        key={l.id.to_string()}
+                                        listing={l.clone()}
+                                        name={item_name(&catalog, &l.item.item_type)}
+                                        now={response.now}
+                                        me={me.clone()}
+                                        on_action={on_action.clone()}
+                                    />
+                                }) }
+                            </tbody>
+                        </table>
+                    }
+                </section>
+            </div>
+        </main>
+    }
+}
