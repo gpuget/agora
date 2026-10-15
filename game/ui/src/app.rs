@@ -6,17 +6,12 @@ use gloo_timers::callback::Interval;
 use yew::prelude::*;
 
 use crate::api::{Action, get, perform};
-use crate::components::{ListingRow, SellForm, SellItem};
-use crate::format::{base_value, item_name, money, select_value};
+use crate::components::{
+    CharacterPanel, Filter, FilterBar, Header, ListingsTable, MessageBanner, SellForm, SellItem,
+};
+use crate::format::{base_value, item_name};
 
 const REFRESH_MS: u32 = 2_000;
-
-#[derive(Clone, Copy, PartialEq)]
-enum Filter {
-    All,
-    MySales,
-    MyBids,
-}
 
 /// Bumped to trigger a refresh.
 #[derive(Default, PartialEq)]
@@ -139,35 +134,19 @@ pub fn App() -> Html {
 
     let on_player = {
         let player = player.clone();
-        Callback::from(move |e: Event| player.set(Some(PlayerRef(select_value(&e)))))
+        Callback::from(move |p: PlayerRef| player.set(Some(p)))
     };
     let on_house = {
-        let (house, houses) = (house.clone(), houses.clone());
-        Callback::from(move |e: Event| {
-            let value = select_value(&e);
-            house.set(
-                houses
-                    .iter()
-                    .find(|h| h.id.to_string() == value)
-                    .map(|h| h.id),
-            );
-        })
+        let house = house.clone();
+        Callback::from(move |id: Option<HouseId>| house.set(id))
+    };
+    let on_filter = {
+        let filter = filter.clone();
+        Callback::from(move |value: Filter| filter.set(value))
     };
     let on_item_filter = {
         let item_filter = item_filter.clone();
-        Callback::from(move |e: Event| {
-            let value = select_value(&e);
-            item_filter.set((!value.is_empty()).then_some(ItemType(value)));
-        })
-    };
-    let tab = |value: Filter, label: &str| {
-        let filter = filter.clone();
-        let class = if *filter == value {
-            "tab active"
-        } else {
-            "tab"
-        };
-        html! { <button class={class} onclick={move |_| filter.set(value)}>{ label }</button> }
+        Callback::from(move |value: Option<ItemType>| item_filter.set(value))
     };
 
     let me = (*player).clone();
@@ -178,41 +157,22 @@ pub fn App() -> Html {
 
     html! {
         <main>
-            <header>
-                <h1>{ "Agora" }</h1>
-                <label>{ "Joueur " }
-                    <select onchange={on_player}>
-                        { for players.iter().map(|p| html! {
-                            <option value={p.player.to_string()} selected={Some(&p.player) == me.as_ref()}>{ p.player.to_string() }</option>
-                        }) }
-                    </select>
-                </label>
-                <label>{ "Hôtel des ventes " }
-                    <select onchange={on_house}>
-                        { for houses.iter().map(|h| html! {
-                            <option value={h.id.to_string()} selected={Some(h.id) == *house}>
-                                { format!("{} (commission {} %)", h.name, f64::from(h.commission) / 100.0) }
-                            </option>
-                        }) }
-                    </select>
-                </label>
-                <span class="sink">{ format!("Or retiré du jeu : {}", money(*sink)) }</span>
-            </header>
+            <Header
+                players={(*players).clone()}
+                houses={(*houses).clone()}
+                player={me.clone()}
+                house={*house}
+                sink={*sink}
+                {on_player}
+                {on_house}
+            />
 
-            if let Some((ok, text)) = (*message).clone() {
-                <p class={if ok { "message ok" } else { "message error" }}>{ text }</p>
-            }
+            <MessageBanner message={(*message).clone()} />
 
             <div class="layout">
                 <aside>
                     if let Some(view) = my_view.clone() {
-                        <h2>{ "Mon personnage" }</h2>
-                        <p>{ format!("Or : {}", money(view.gold)) }</p>
-                        <ul>
-                            { for view.items.iter().map(|i| html! {
-                                <li>{ format!("{} x{}", item_name(&catalog, &i.item_type), i.quantity) }</li>
-                            }) }
-                        </ul>
+                        <CharacterPanel view={view.clone()} catalog={(*catalog).clone()} />
                         if let Some(current_house) = current_house.clone() {
                             <SellForm
                                 key={format!("{}-{}", view.player, current_house.id)}
@@ -231,40 +191,20 @@ pub fn App() -> Html {
                 </aside>
 
                 <section>
-                    <div class="filters">
-                        { tab(Filter::All, "Toutes les ventes") }
-                        { tab(Filter::MySales, "Mes ventes") }
-                        { tab(Filter::MyBids, "Mes enchères") }
-                        <select onchange={on_item_filter}>
-                            <option value="" selected={item_filter.is_none()}>{ "Tous les objets" }</option>
-                            { for catalog.iter().map(|e| html! {
-                                <option value={e.item_type.to_string()} selected={item_filter.as_ref() == Some(&e.item_type)}>{ e.name.clone() }</option>
-                            }) }
-                        </select>
-                    </div>
+                    <FilterBar
+                        filter={*filter}
+                        item_filter={(*item_filter).clone()}
+                        catalog={(*catalog).clone()}
+                        {on_filter}
+                        {on_item_filter}
+                    />
                     if let (Some(response), Some(me)) = ((*listings).clone(), me.clone()) {
-                        <p class="count">{ format!("{} vente(s)", response.page.total) }</p>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>{ "Objet" }</th><th>{ "Qté" }</th><th>{ "Vendeur" }</th>
-                                    <th>{ "Enchère / u" }</th><th>{ "Achat immédiat / u" }</th>
-                                    <th>{ "Meilleur enchérisseur" }</th><th>{ "Temps restant" }</th><th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                { for response.page.items.iter().map(|l| html! {
-                                    <ListingRow
-                                        key={l.id.to_string()}
-                                        listing={l.clone()}
-                                        name={item_name(&catalog, &l.item.item_type)}
-                                        now={response.now}
-                                        me={me.clone()}
-                                        on_action={on_action.clone()}
-                                    />
-                                }) }
-                            </tbody>
-                        </table>
+                        <ListingsTable
+                            {response}
+                            catalog={(*catalog).clone()}
+                            {me}
+                            on_action={on_action.clone()}
+                        />
                     }
                 </section>
             </div>
