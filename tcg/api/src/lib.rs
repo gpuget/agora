@@ -5,10 +5,9 @@ use std::time::Duration;
 
 pub use agora_api::BidOutcome;
 use agora_domain::{
-    AuctionHouse, HouseConfig, HouseId, Listing, ListingId, Money, OpId, Page, PlayerRef,
-    SearchQuery,
+    AuctionHouse, HouseConfig, HouseId, Listing, ListingId, Money, Page, PlayerRef, SearchQuery,
 };
-use tcg_domain::{CardEntry, CardId, Collector, TakenReason, TcgError};
+use tcg_domain::{CardEntry, CardId, Collector, TcgError};
 
 /// Puts one copy of a card up for sale: a listing always holds a single card, so its prices
 /// are the prices of that card.
@@ -69,55 +68,4 @@ pub trait TcgApi: Send + Sync {
 
     /// Settles expired auctions. Must be called periodically by the host.
     fn settle_auctions(&self) -> impl Future<Output = Result<usize, TcgError>> + Send;
-}
-
-/// Dust and cards of the collectors, driven by the auction house through an adapter.
-///
-/// Every movement carries the [`OpId`] of the Agora call: a call replayed with the same
-/// `OpId` succeeds without effect.
-pub trait LedgerApi: Send + Sync {
-    /// Opens the account of a new collector with their starting dust and cards. Fails with
-    /// [`TcgError::CollectorExists`] if the collector already has one.
-    fn open_collector(
-        &self,
-        collector: Collector,
-    ) -> impl Future<Output = Result<(), TcgError>> + Send;
-
-    fn withdraw_card(
-        &self,
-        op: OpId,
-        collector: &PlayerRef,
-        card: &CardId,
-        copies: u32,
-    ) -> impl Future<Output = Result<(), TcgError>> + Send;
-
-    fn deposit_card(
-        &self,
-        op: OpId,
-        collector: &PlayerRef,
-        card: &CardId,
-        copies: u32,
-    ) -> impl Future<Output = Result<(), TcgError>> + Send;
-
-    fn debit(
-        &self,
-        op: OpId,
-        collector: &PlayerRef,
-        amount: Money,
-    ) -> impl Future<Output = Result<(), TcgError>> + Send;
-
-    fn credit(
-        &self,
-        op: OpId,
-        collector: &PlayerRef,
-        amount: Money,
-    ) -> impl Future<Output = Result<(), TcgError>> + Send;
-
-    /// Dust taken by the auction house (commission, forfeited deposit).
-    fn take_dust(
-        &self,
-        op: OpId,
-        amount: Money,
-        reason: TakenReason,
-    ) -> impl Future<Output = Result<(), TcgError>> + Send;
 }

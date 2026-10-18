@@ -304,6 +304,7 @@ dependencies = [
  "game-api",
  "game-domain",
  "game-spi",
+ "ledger",
  "tokio",
  "tracing",
  "uuid",
@@ -315,8 +316,8 @@ version = "0.3.0"
 dependencies = [
  "agora-domain",
  "event-sourcing",
+ "ledger",
  "thiserror 2.0.21",
- "uuid",
 ]
 
 [[package]]
@@ -341,6 +342,7 @@ dependencies = [
  "game-domain",
  "game-dto",
  "game-spi",
+ "ledger",
  "rand",
  "serde",
  "tokio",
@@ -768,6 +770,19 @@ name = "lazy_static"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20870f649af7073d53e38067b2a84312175d56ea15217e1b15bc83506ec50afb"
+
+[[package]]
+name = "ledger"
+version = "0.3.0"
+dependencies = [
+ "agora-domain",
+ "agora-spi",
+ "event-sourcing",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "uuid",
+]
 
 [[package]]
 name = "libc"
@@ -1236,6 +1251,7 @@ dependencies = [
  "agora-core",
  "agora-domain",
  "event-sourcing",
+ "ledger",
  "tcg-api",
  "tcg-domain",
  "tcg-spi",
@@ -1250,8 +1266,8 @@ version = "0.3.0"
 dependencies = [
  "agora-domain",
  "event-sourcing",
+ "ledger",
  "thiserror 2.0.21",
- "uuid",
 ]
 
 [[package]]
@@ -1271,6 +1287,7 @@ dependencies = [
  "agora-spi",
  "axum",
  "event-sourcing",
+ "ledger",
  "rand",
  "serde",
  "tcg-api",

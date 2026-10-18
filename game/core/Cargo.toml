@@ -11,6 +11,7 @@ memory = []
 agora-api.workspace = true
 agora-domain.workspace = true
 event-sourcing.workspace = true
+ledger.workspace = true
 game-api.workspace = true
 game-domain.workspace = true
 game-spi.workspace = true

@@ -9,14 +9,15 @@ Rust workspace. Crates of the auction core live in `agora/`, crates of the demo 
 - `agora-spi`: outbound ports (`Inventory`, `Wallet`, `MoneySink`, `AuctionRepository`, `Clock`).
 - `agora-core`: `AuctionService`, implements `agora-api` on top of `agora-spi`. Feature `memory`: in-memory adapters.
 - `event-sourcing`: event sourcing independent of any domain: `Decider`, the `EventStore` and `Projection` ports, `execute` and `Projector`. Feature `memory`: in-memory event store.
-- `game-domain`: demo game domain (`Player`, `CatalogEntry`, `GameError`) and the ledger deciders.
-- `game-api`: inbound ports of the game: `GameApi` (player use cases) and `LedgerApi` (gold and item movements requested by Agora).
+- `ledger`: event-sourced ledger shared by the demo games: `Account` (funds and items of a player), the account and treasury deciders, `LedgerApi` and `LedgerService`, and `AgoraBridge`, which implements Agora's outbound ports (`Inventory`, `Wallet`, `MoneySink`) with a `LedgerApi`.
+- `game-domain`: demo game domain (`Player`, an `Account` holding gold, `CatalogEntry`, `GameError`).
+- `game-api`: inbound ports of the game: `GameApi` (player use cases).
 - `game-spi`: outbound ports of the game (`PlayerView`, `TreasuryView`, `Catalog`, `HouseRegistry`) plus Agora's `AuctionApi`.
-- `game-core`: `GameService` and `LedgerService` (event-sourced ledger), `CaughtUpView`. Feature `memory`: in-memory adapters.
-- `game-server`: demo game server. Adapters (HTTP on port 8080, bridge implementing Agora's outbound ports with `LedgerApi`, system clock) and wiring.
+- `game-core`: `GameService`, `CaughtUpView`. Feature `memory`: in-memory adapters.
+- `game-server`: demo game server. Adapters (HTTP on port 8080, system clock) and wiring.
 - `game-dto`: HTTP requests and responses shared by `game-server` and `game-ui`.
 - `game-ui`: web app (Yew, built with Trunk), served on port 3000.
-- `tcg-*`: the trading card game, same crates as `game-*` (`tcg-domain`, `tcg-api`, `tcg-spi`, `tcg-core`, `tcg-server`, `tcg-dto`, `tcg-ui`). A collector holds dust (the money, one unit per dust) and copies of cards, which are interchangeable. A listing always holds a single card: `SellCommand` has no quantity, so prices are per card. The base value of a card, used for the deposit, comes from its rarity.
+- `tcg-*`: the trading card game, same crates as `game-*` on top of `ledger` (`tcg-domain`, `tcg-api`, `tcg-spi`, `tcg-core`, `tcg-server`, `tcg-dto`, `tcg-ui`). A collector holds dust (the money, one unit per dust) and copies of cards, which are interchangeable. A listing always holds a single card: `SellCommand` has no quantity, so prices are per card. The base value of a card, used for the deposit, comes from its rarity.
 
 ## Setup
 

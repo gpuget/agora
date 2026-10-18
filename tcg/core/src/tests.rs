@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use agora_core::AuctionService;
@@ -10,19 +9,19 @@ use agora_domain::{
     Timestamp,
 };
 use event_sourcing::memory::InMemoryEventStore;
-use event_sourcing::{EventStore, Projection, Projector, Recorded, StoreError};
-use tcg_api::{LedgerApi, SellCommand, TcgApi};
-use tcg_domain::{
-    CardEntry, CardId, Collector, CollectorEvent, Rarity, TakenReason, TcgError, TreasuryEvent,
-    TreasuryId,
+use event_sourcing::{EventStore, Projection, Projector};
+use ledger::{
+    AccountEvent, LedgerApi, LedgerError, LedgerService, TakenReason, TreasuryEvent, TreasuryId,
 };
+use tcg_api::{SellCommand, TcgApi};
+use tcg_domain::{CardEntry, CardId, Collector, Rarity, TcgError};
 use tcg_spi::{CollectorView, TreasuryView};
 use uuid::Uuid;
 
 use crate::memory::{
     InMemoryCollectorProjection, InMemoryHouseRegistry, InMemoryTreasuryProjection, StaticCatalog,
 };
-use crate::{CaughtUpView, LedgerService, TcgService};
+use crate::{CaughtUpView, TcgService};
 
 type Agora = AuctionService<
     InMemoryAuctionRepository,
@@ -178,16 +177,16 @@ fn op(n: u128) -> OpId {
     OpId(Uuid::from_u128(n))
 }
 
-type CollectorEvents = InMemoryEventStore<PlayerRef, CollectorEvent>;
+type AccountEvents = InMemoryEventStore<PlayerRef, AccountEvent>;
 type TreasuryEvents = InMemoryEventStore<TreasuryId, TreasuryEvent>;
 
 /// The ledger with Alice opened (100 dust, 2 drakes), and projectors feeding fresh read
 /// models from its event stores.
 struct Ledger {
-    ledger: LedgerService<CollectorEvents, TreasuryEvents>,
+    ledger: LedgerService<AccountEvents, TreasuryEvents>,
     collectors: InMemoryCollectorProjection,
     collector_projector:
-        Projector<CollectorEvents, InMemoryCollectorProjection, PlayerRef, CollectorEvent>,
+        Projector<AccountEvents, InMemoryCollectorProjection, PlayerRef, AccountEvent>,
     treasury: InMemoryTreasuryProjection,
     treasury_projector:
         Projector<TreasuryEvents, InMemoryTreasuryProjection, TreasuryId, TreasuryEvent>,
@@ -195,11 +194,11 @@ struct Ledger {
 
 impl Ledger {
     async fn new() -> Self {
-        let collector_events = CollectorEvents::default();
+        let collector_events = AccountEvents::default();
         let treasury_events = TreasuryEvents::default();
         let ledger = LedgerService::new(collector_events.clone(), treasury_events.clone());
         ledger
-            .open_collector(Collector::new(alice(), Money(100)).with_card(drake(), 2))
+            .open_account(Collector::new(alice(), Money(100)).with_item(drake(), 2))
             .await
             .unwrap();
         let collectors = InMemoryCollectorProjection::default();
@@ -227,19 +226,19 @@ async fn ledger_moves_dust_and_cards() {
     ledger.debit(op(1), &alice(), Money(30)).await.unwrap();
     ledger.credit(op(2), &alice(), Money(5)).await.unwrap();
     ledger
-        .withdraw_card(op(3), &alice(), &drake(), 1)
+        .withdraw_item(op(3), &alice(), &drake(), 1)
         .await
         .unwrap();
     ledger
-        .deposit_card(op(4), &alice(), &drake(), 1)
+        .deposit_item(op(4), &alice(), &drake(), 1)
         .await
         .unwrap();
     // The projector has not run yet.
     assert_eq!(fixture.collectors.list().await.unwrap(), vec![]);
 
     let alice = fixture.alice().await;
-    assert_eq!(alice.dust, Money(75));
-    assert_eq!(alice.copies(&drake()), 2);
+    assert_eq!(alice.funds, Money(75));
+    assert_eq!(alice.quantity(&drake()), 2);
 }
 
 #[tokio::test]
@@ -252,7 +251,7 @@ async fn replayed_op_is_applied_once() {
             .await
             .unwrap();
     }
-    assert_eq!(fixture.alice().await.dust, Money(70));
+    assert_eq!(fixture.alice().await.funds, Money(70));
 }
 
 #[tokio::test]
@@ -263,26 +262,15 @@ async fn failed_ledger_call_leaves_collector_unchanged() {
         .debit(op(1), &alice(), Money(101))
         .await
         .unwrap_err();
-    assert_eq!(err, TcgError::InsufficientDust);
-    assert_eq!(fixture.alice().await.dust, Money(100));
+    assert_eq!(err, LedgerError::InsufficientFunds);
+    assert_eq!(fixture.alice().await.funds, Money(100));
 
     let err = fixture
         .ledger
         .debit(op(2), &"nobody".into(), Money(1))
         .await
         .unwrap_err();
-    assert_eq!(err, TcgError::UnknownCollector("nobody".into()));
-}
-
-#[tokio::test]
-async fn opening_a_collector_twice_fails() {
-    let fixture = Ledger::new().await;
-    let err = fixture
-        .ledger
-        .open_collector(Collector::new(alice(), Money(0)))
-        .await
-        .unwrap_err();
-    assert_eq!(err, TcgError::CollectorExists(alice()));
+    assert_eq!(err, LedgerError::UnknownAccount("nobody".into()));
 }
 
 #[tokio::test]
@@ -293,13 +281,13 @@ async fn taken_dust_goes_to_the_treasury_once() {
     for _ in 0..2 {
         fixture
             .ledger
-            .take_dust(op(1), Money(7), commission)
+            .take_money(op(1), Money(7), commission)
             .await
             .unwrap();
     }
     fixture
         .ledger
-        .take_dust(op(2), Money(3), TakenReason::ForfeitedDeposit { listing })
+        .take_money(op(2), Money(3), TakenReason::ForfeitedDeposit { listing })
         .await
         .unwrap();
     fixture.treasury_projector.catch_up().await.unwrap();
@@ -308,10 +296,10 @@ async fn taken_dust_goes_to_the_treasury_once() {
 
 #[tokio::test]
 async fn projection_rebuilds_from_the_events() {
-    let collector_events = CollectorEvents::default();
+    let collector_events = AccountEvents::default();
     let ledger = LedgerService::new(collector_events.clone(), TreasuryEvents::default());
     ledger
-        .open_collector(Collector::new(alice(), Money(100)))
+        .open_account(Collector::new(alice(), Money(100)))
         .await
         .unwrap();
     for n in 1..=300 {
@@ -322,15 +310,15 @@ async fn projection_rebuilds_from_the_events() {
     let projector = Projector::new(collector_events, collectors.clone());
     assert_eq!(projector.catch_up().await.unwrap(), 301);
     assert_eq!(projector.catch_up().await.unwrap(), 0);
-    assert_eq!(collectors.get(&alice()).unwrap().dust, Money(400));
+    assert_eq!(collectors.get(&alice()).unwrap().funds, Money(400));
 }
 
 #[tokio::test]
 async fn projection_skips_replayed_events() {
-    let collector_events = CollectorEvents::default();
+    let collector_events = AccountEvents::default();
     let ledger = LedgerService::new(collector_events.clone(), TreasuryEvents::default());
     ledger
-        .open_collector(Collector::new(alice(), Money(100)))
+        .open_account(Collector::new(alice(), Money(100)))
         .await
         .unwrap();
     ledger.credit(op(1), &alice(), Money(5)).await.unwrap();
@@ -339,74 +327,25 @@ async fn projection_skips_replayed_events() {
     let batch = collector_events.read_all(0, 10).await.unwrap();
     collectors.apply(&batch).await.unwrap();
     collectors.apply(&batch).await.unwrap();
-    assert_eq!(collectors.get(&alice()).unwrap().dust, Money(105));
-}
-
-/// Fails the first append with a conflict, as if another write happened in between.
-struct ConflictOnce<S> {
-    inner: S,
-    conflicted: AtomicBool,
-}
-
-impl<S: EventStore<PlayerRef, CollectorEvent>> EventStore<PlayerRef, CollectorEvent>
-    for ConflictOnce<S>
-{
-    async fn load(&self, stream: &PlayerRef) -> Result<Vec<CollectorEvent>, StoreError> {
-        self.inner.load(stream).await
-    }
-
-    async fn append(
-        &self,
-        stream: &PlayerRef,
-        expected: u64,
-        events: Vec<CollectorEvent>,
-    ) -> Result<u64, StoreError> {
-        if !self.conflicted.swap(true, Ordering::SeqCst) {
-            return Err(StoreError::Conflict);
-        }
-        self.inner.append(stream, expected, events).await
-    }
-
-    async fn read_all(
-        &self,
-        after: u64,
-        limit: usize,
-    ) -> Result<Vec<Recorded<PlayerRef, CollectorEvent>>, StoreError> {
-        self.inner.read_all(after, limit).await
-    }
-}
-
-#[tokio::test]
-async fn ledger_retries_on_conflict() {
-    let collector_events = CollectorEvents::default();
-    let store = ConflictOnce {
-        inner: collector_events.clone(),
-        conflicted: AtomicBool::new(false),
-    };
-    let ledger = LedgerService::new(store, TreasuryEvents::default());
-    ledger
-        .open_collector(Collector::new(alice(), Money(100)))
-        .await
-        .unwrap();
-    assert_eq!(collector_events.load(&alice()).await.unwrap().len(), 1);
+    assert_eq!(collectors.get(&alice()).unwrap().funds, Money(105));
 }
 
 #[tokio::test]
 async fn caught_up_views_show_every_recorded_event() {
-    let collector_events = CollectorEvents::default();
+    let collector_events = AccountEvents::default();
     let treasury_events = TreasuryEvents::default();
     let ledger = LedgerService::new(collector_events.clone(), treasury_events.clone());
     let collectors = CaughtUpView::new(collector_events, InMemoryCollectorProjection::default());
     let treasury = CaughtUpView::new(treasury_events, InMemoryTreasuryProjection::default());
 
     ledger
-        .open_collector(Collector::new(alice(), Money(100)))
+        .open_account(Collector::new(alice(), Money(100)))
         .await
         .unwrap();
     ledger.debit(op(1), &alice(), Money(30)).await.unwrap();
     let listing = ListingId(Default::default());
     ledger
-        .take_dust(op(2), Money(7), TakenReason::Commission { listing })
+        .take_money(op(2), Money(7), TakenReason::Commission { listing })
         .await
         .unwrap();
 

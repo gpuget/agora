@@ -1,0 +1,16 @@
+[package]
+name = "ledger"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agora-domain.workspace = true
+agora-spi.workspace = true
+event-sourcing.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+event-sourcing = { workspace = true, features = ["memory"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
+uuid.workspace = true

@@ -5,9 +5,8 @@ use std::sync::{Arc, Mutex};
 
 use agora_domain::{AuctionHouse, Money, PlayerRef};
 use event_sourcing::{Projection, Recorded, StoreError};
-use tcg_domain::{
-    CardEntry, CardId, Collector, CollectorEvent, TcgError, TreasuryEvent, TreasuryId,
-};
+use ledger::{Account, AccountEvent, TreasuryEvent, TreasuryId};
+use tcg_domain::{CardEntry, CardId, Collector, TcgError};
 use tcg_spi::{Catalog, CollectorView, HouseRegistry, TreasuryView};
 
 #[derive(Default)]
@@ -26,22 +25,19 @@ impl InMemoryCollectorProjection {
     }
 }
 
-impl Projection<PlayerRef, CollectorEvent> for InMemoryCollectorProjection {
+impl Projection<PlayerRef, AccountEvent> for InMemoryCollectorProjection {
     async fn checkpoint(&self) -> Result<u64, StoreError> {
         Ok(self.0.lock().unwrap().checkpoint)
     }
 
-    async fn apply(
-        &self,
-        events: &[Recorded<PlayerRef, CollectorEvent>],
-    ) -> Result<(), StoreError> {
+    async fn apply(&self, events: &[Recorded<PlayerRef, AccountEvent>]) -> Result<(), StoreError> {
         let mut state = self.0.lock().unwrap();
         for recorded in events {
             if recorded.position <= state.checkpoint {
                 continue;
             }
             let collector = state.collectors.remove(&recorded.stream);
-            if let Some(collector) = Collector::apply(collector, &recorded.event) {
+            if let Some(collector) = Account::apply(collector, &recorded.event) {
                 state.collectors.insert(recorded.stream.clone(), collector);
             }
             state.checkpoint = recorded.position;
@@ -87,7 +83,7 @@ impl Projection<TreasuryId, TreasuryEvent> for InMemoryTreasuryProjection {
             if recorded.position <= state.checkpoint {
                 continue;
             }
-            let TreasuryEvent::DustTaken { amount, .. } = recorded.event;
+            let TreasuryEvent::MoneyTaken { amount, .. } = recorded.event;
             state.total = Money(state.total.0.saturating_add(amount.0));
             state.checkpoint = recorded.position;
         }

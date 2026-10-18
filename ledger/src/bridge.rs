@@ -1,17 +1,17 @@
-//! Implements the outbound ports of Agora by driving the game ledger.
+//! Implements the outbound ports of Agora by driving the ledger.
 
 use agora_domain::{HouseId, ItemStack, Money, OpId, PlayerRef, PortError};
 use agora_spi::{Inventory, MoneySink, SinkReason, Wallet};
-use tcg_api::LedgerApi;
-use tcg_domain::{TakenReason, TcgError};
+
+use crate::{LedgerApi, LedgerError, TakenReason};
 
 #[derive(Clone)]
 pub struct AgoraBridge<L>(pub L);
 
-fn port_error(error: TcgError) -> PortError {
+fn port_error(error: LedgerError) -> PortError {
     match error {
-        TcgError::CardUnavailable => PortError::ItemUnavailable,
-        TcgError::InsufficientDust => PortError::InsufficientFunds,
+        LedgerError::ItemUnavailable => PortError::ItemUnavailable,
+        LedgerError::InsufficientFunds => PortError::InsufficientFunds,
         other => PortError::Other(other.to_string()),
     }
 }
@@ -24,7 +24,7 @@ impl<L: LedgerApi> Inventory for AgoraBridge<L> {
         item: &ItemStack,
     ) -> Result<(), PortError> {
         self.0
-            .withdraw_card(op, player, &item.item_type, item.quantity)
+            .withdraw_item(op, player, &item.item_type, item.quantity)
             .await
             .map_err(port_error)
     }
@@ -36,7 +36,7 @@ impl<L: LedgerApi> Inventory for AgoraBridge<L> {
         item: &ItemStack,
     ) -> Result<(), PortError> {
         self.0
-            .deposit_card(op, player, &item.item_type, item.quantity)
+            .deposit_item(op, player, &item.item_type, item.quantity)
             .await
             .map_err(port_error)
     }
@@ -65,7 +65,7 @@ impl<L: LedgerApi> MoneySink for AgoraBridge<L> {
             SinkReason::ForfeitedDeposit { listing } => TakenReason::ForfeitedDeposit { listing },
         };
         self.0
-            .take_dust(op, amount, reason)
+            .take_money(op, amount, reason)
             .await
             .map_err(port_error)
     }

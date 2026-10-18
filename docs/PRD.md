@@ -25,11 +25,12 @@ Le jeu est un client de confiance. Les joueurs n'appellent jamais Agora directem
 | `agora-api` | Ports entrants : trait `AuctionApi` (cas d'usage) et commandes | `agora-domain` |
 | `agora-spi` | Ports sortants : `Inventory`, `Wallet`, `MoneySink`, `AuctionRepository`, `Clock` | `agora-domain` |
 | `agora-core` | `AuctionService` : implémente `AuctionApi` à partir des ports SPI. Feature `memory` : adaptateurs en mémoire (repository, faux ports, horloge manuelle) | `agora-domain`, `agora-api`, `agora-spi` |
-| `game-domain` | Domaine du jeu : `Player` (or, objets), `CatalogEntry`, `GameError` | `agora-domain` |
-| `game-api` | Ports entrants du jeu : `GameApi` (cas d'usage joueur) et `LedgerApi` (mouvements d'or et d'objets demandés par Agora) | `game-domain`, `agora-api` |
+| `ledger` | Grand livre événementiel partagé par les jeux : `Account` (fonds et objets d'un joueur), deciders des comptes et du trésor, `LedgerApi`, `LedgerService`, et `AgoraBridge` qui implémente les ports SPI d'Agora via `LedgerApi` | `agora-domain`, `agora-spi`, `event-sourcing` |
+| `game-domain` | Domaine du jeu : `Player` (un `Account` d'or et d'objets), `CatalogEntry`, `GameError` | `agora-domain`, `ledger` |
+| `game-api` | Ports entrants du jeu : `GameApi` (cas d'usage joueur) | `game-domain`, `agora-api` |
 | `game-spi` | Ports sortants du jeu : `PlayerRepository`, `Catalog`, `HouseRegistry`, `Treasury`, et `AuctionApi` d'Agora (système externe pour le jeu) | `game-domain`, `agora-api` |
-| `game-core` | `GameService` et `LedgerService`. Feature `memory` : adaptateurs en mémoire | `game-api`, `game-spi` |
-| `game-server` | Binaire : adaptateurs (HTTP axum, pont qui implémente les ports SPI d'Agora via `LedgerApi`, horloge système), câblage, déclenchement du règlement | tout |
+| `game-core` | `GameService`. Feature `memory` : adaptateurs en mémoire | `game-api`, `game-spi` |
+| `game-server` | Binaire : adaptateurs (HTTP axum, horloge système), câblage, déclenchement du règlement | tout |
 | `game-dto` | Requêtes et réponses HTTP entre `game-server` et `game-ui` | `agora-domain` |
 | `game-ui` | Interface web (Yew) branchée sur le HTTP de `game-server` | `agora-domain`, `game-dto` |
 
@@ -102,7 +103,7 @@ Cible : outbox transactionnelle. Les effets externes sont écrits en base dans l
 
 ## 9. Jeu de démonstration
 
-- Le jeu suit lui aussi une clean architecture : Agora est pour lui un système externe (port sortant `AuctionApi`), et Agora pilote son grand livre (`LedgerApi`) via un adaptateur pont.
+- Le jeu suit lui aussi une clean architecture : Agora est pour lui un système externe (port sortant `AuctionApi`), et Agora pilote son grand livre (crate `ledger`, `LedgerApi`) via `AgoraBridge`.
 - Joueurs, or et inventaires en mémoire, catalogue d'objets avec leur valeur de base. La valeur de base est lue dans le catalogue par `GameService::sell`, jamais reçue du client.
 - Deux maisons : « Alliance » (commission 5 %) et « Neutre » (commission 15 %).
 - Le règlement tourne toutes les secondes.

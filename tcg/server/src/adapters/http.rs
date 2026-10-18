@@ -52,8 +52,7 @@ pub struct ApiError(StatusCode, String);
 impl From<TcgError> for ApiError {
     fn from(error: TcgError) -> Self {
         let status = match &error {
-            TcgError::UnknownCollector(_)
-            | TcgError::Auction(AuctionError::HouseNotFound | AuctionError::ListingNotFound) => {
+            TcgError::Auction(AuctionError::HouseNotFound | AuctionError::ListingNotFound) => {
                 StatusCode::NOT_FOUND
             }
             TcgError::Conflict | TcgError::Auction(AuctionError::Conflict) => StatusCode::CONFLICT,
@@ -135,9 +134,9 @@ async fn collectors(State(tcg): State<Arc<Tcg>>) -> ApiResult<Vec<CollectorView>
             .into_iter()
             .map(|c| CollectorView {
                 collector: c.id,
-                dust: c.dust,
+                dust: c.funds,
                 cards: c
-                    .cards
+                    .items
                     .into_iter()
                     .map(|(card, copies)| CardCount { card, copies })
                     .collect(),

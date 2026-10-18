@@ -9,6 +9,7 @@ agora-spi.workspace = true
 agora-core = { workspace = true, features = ["memory"] }
 event-sourcing = { workspace = true, features = ["memory"] }
 tcg-domain.workspace = true
+ledger.workspace = true
 tcg-api.workspace = true
 tcg-core = { workspace = true, features = ["memory"] }
 tcg-spi.workspace = true

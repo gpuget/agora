@@ -11,26 +11,25 @@ use agora_core::AuctionService;
 use agora_core::memory::InMemoryAuctionRepository;
 use agora_domain::{Money, PlayerRef};
 use event_sourcing::memory::InMemoryEventStore;
-use tcg_api::{LedgerApi, TcgApi};
+use ledger::{AccountEvent, AgoraBridge, LedgerApi, LedgerService, TreasuryEvent, TreasuryId};
+use tcg_api::TcgApi;
 use tcg_core::memory::{
     InMemoryCollectorProjection, InMemoryHouseRegistry, InMemoryTreasuryProjection, StaticCatalog,
 };
-use tcg_core::{CaughtUpView, LedgerService, TcgService};
-use tcg_domain::{CardEntry, Collector, CollectorEvent, TreasuryEvent, TreasuryId};
+use tcg_core::{CaughtUpView, TcgService};
+use tcg_domain::{CardEntry, Collector};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-use crate::adapters::agora_bridge::AgoraBridge;
 use crate::adapters::clock::SystemClock;
 use crate::settings::Settings;
 
-type CollectorEvents = InMemoryEventStore<PlayerRef, CollectorEvent>;
+type AccountEvents = InMemoryEventStore<PlayerRef, AccountEvent>;
 type TreasuryEvents = InMemoryEventStore<TreasuryId, TreasuryEvent>;
-type Ledger = LedgerService<CollectorEvents, TreasuryEvents>;
+type Ledger = LedgerService<AccountEvents, TreasuryEvents>;
 type Bridge = AgoraBridge<Ledger>;
 type Agora = AuctionService<InMemoryAuctionRepository, Bridge, Bridge, Bridge, SystemClock>;
-type Collectors =
-    CaughtUpView<CollectorEvents, InMemoryCollectorProjection, PlayerRef, CollectorEvent>;
+type Collectors = CaughtUpView<AccountEvents, InMemoryCollectorProjection, PlayerRef, AccountEvent>;
 type Treasury = CaughtUpView<TreasuryEvents, InMemoryTreasuryProjection, TreasuryId, TreasuryEvent>;
 pub type Tcg = TcgService<Collectors, StaticCatalog, InMemoryHouseRegistry, Treasury, Agora>;
 
@@ -51,7 +50,7 @@ fn starting_collectors(catalog: &[CardEntry]) -> Vec<Collector> {
             }
             for index in chosen {
                 let copies = rand::random_range(1..=3);
-                collector = collector.with_card(catalog[index].card.clone(), copies);
+                collector = collector.with_item(catalog[index].card.clone(), copies);
             }
             collector
         })
@@ -86,15 +85,12 @@ async fn main() {
     }
 
     let catalog = settings.catalog();
-    let collector_events = CollectorEvents::default();
+    let collector_events = AccountEvents::default();
     let treasury_events = TreasuryEvents::default();
     let ledger = LedgerService::new(collector_events.clone(), treasury_events.clone());
     for collector in starting_collectors(&catalog) {
-        info!(id = %collector.id, dust = collector.dust.0, cards = ?collector.cards, "collector created");
-        ledger
-            .open_collector(collector)
-            .await
-            .expect("new collector");
+        info!(id = %collector.id, dust = collector.funds.0, cards = ?collector.items, "collector created");
+        ledger.open_account(collector).await.expect("new collector");
     }
 
     // Read models of the ledger, caught up with its events on every read.

@@ -5,10 +5,10 @@ use std::time::Duration;
 
 pub use agora_api::BidOutcome;
 use agora_domain::{
-    AuctionHouse, HouseConfig, HouseId, ItemType, Listing, ListingId, Money, OpId, Page, PlayerRef,
+    AuctionHouse, HouseConfig, HouseId, ItemType, Listing, ListingId, Money, Page, PlayerRef,
     SearchQuery,
 };
-use game_domain::{CatalogEntry, GameError, Player, TakenReason};
+use game_domain::{CatalogEntry, GameError, Player};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SellCommand {
@@ -68,52 +68,4 @@ pub trait GameApi: Send + Sync {
 
     /// Settles expired auctions. Must be called periodically by the host.
     fn settle_auctions(&self) -> impl Future<Output = Result<usize, GameError>> + Send;
-}
-
-/// Gold and items of the players, driven by the auction house through an adapter.
-///
-/// Every movement carries the [`OpId`] of the Agora call: a call replayed with the same
-/// `OpId` succeeds without effect.
-pub trait LedgerApi: Send + Sync {
-    /// Opens the account of a new player with their starting gold and items. Fails with
-    /// [`GameError::PlayerExists`] if the player already has one.
-    fn open_player(&self, player: Player) -> impl Future<Output = Result<(), GameError>> + Send;
-
-    fn withdraw_item(
-        &self,
-        op: OpId,
-        player: &PlayerRef,
-        item_type: &ItemType,
-        quantity: u32,
-    ) -> impl Future<Output = Result<(), GameError>> + Send;
-
-    fn deposit_item(
-        &self,
-        op: OpId,
-        player: &PlayerRef,
-        item_type: &ItemType,
-        quantity: u32,
-    ) -> impl Future<Output = Result<(), GameError>> + Send;
-
-    fn debit(
-        &self,
-        op: OpId,
-        player: &PlayerRef,
-        amount: Money,
-    ) -> impl Future<Output = Result<(), GameError>> + Send;
-
-    fn credit(
-        &self,
-        op: OpId,
-        player: &PlayerRef,
-        amount: Money,
-    ) -> impl Future<Output = Result<(), GameError>> + Send;
-
-    /// Money taken by the auction house (commission, forfeited deposit).
-    fn take_money(
-        &self,
-        op: OpId,
-        amount: Money,
-        reason: TakenReason,
-    ) -> impl Future<Output = Result<(), GameError>> + Send;
 }

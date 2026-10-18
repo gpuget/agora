@@ -52,8 +52,7 @@ pub struct ApiError(StatusCode, String);
 impl From<GameError> for ApiError {
     fn from(error: GameError) -> Self {
         let status = match &error {
-            GameError::UnknownPlayer(_)
-            | GameError::Auction(AuctionError::HouseNotFound | AuctionError::ListingNotFound) => {
+            GameError::Auction(AuctionError::HouseNotFound | AuctionError::ListingNotFound) => {
                 StatusCode::NOT_FOUND
             }
             GameError::Conflict | GameError::Auction(AuctionError::Conflict) => {
@@ -127,7 +126,7 @@ async fn players(State(game): State<Arc<Game>>) -> ApiResult<Vec<PlayerView>> {
             .into_iter()
             .map(|p| PlayerView {
                 player: p.id,
-                gold: p.gold,
+                gold: p.funds,
                 items: p
                     .items
                     .into_iter()

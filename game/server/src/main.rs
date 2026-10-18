@@ -11,25 +11,25 @@ use agora_core::AuctionService;
 use agora_core::memory::InMemoryAuctionRepository;
 use agora_domain::{Money, PlayerRef};
 use event_sourcing::memory::InMemoryEventStore;
-use game_api::{GameApi, LedgerApi};
+use game_api::GameApi;
 use game_core::memory::{
     InMemoryHouseRegistry, InMemoryPlayerProjection, InMemoryTreasuryProjection, StaticCatalog,
 };
-use game_core::{CaughtUpView, GameService, LedgerService};
-use game_domain::{Player, PlayerEvent, TreasuryEvent, TreasuryId};
+use game_core::{CaughtUpView, GameService};
+use game_domain::Player;
+use ledger::{AccountEvent, AgoraBridge, LedgerApi, LedgerService, TreasuryEvent, TreasuryId};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
-use crate::adapters::agora_bridge::AgoraBridge;
 use crate::adapters::clock::SystemClock;
 use crate::settings::{CatalogSettings, Settings};
 
-type PlayerEvents = InMemoryEventStore<PlayerRef, PlayerEvent>;
+type AccountEvents = InMemoryEventStore<PlayerRef, AccountEvent>;
 type TreasuryEvents = InMemoryEventStore<TreasuryId, TreasuryEvent>;
-type Ledger = LedgerService<PlayerEvents, TreasuryEvents>;
+type Ledger = LedgerService<AccountEvents, TreasuryEvents>;
 type Bridge = AgoraBridge<Ledger>;
 type Agora = AuctionService<InMemoryAuctionRepository, Bridge, Bridge, Bridge, SystemClock>;
-type Players = CaughtUpView<PlayerEvents, InMemoryPlayerProjection, PlayerRef, PlayerEvent>;
+type Players = CaughtUpView<AccountEvents, InMemoryPlayerProjection, PlayerRef, AccountEvent>;
 type Treasury = CaughtUpView<TreasuryEvents, InMemoryTreasuryProjection, TreasuryId, TreasuryEvent>;
 pub type Game = GameService<Players, StaticCatalog, InMemoryHouseRegistry, Treasury, Agora>;
 
@@ -89,12 +89,12 @@ async fn main() {
         info!(path = %path.display(), "no settings file, using defaults");
     }
 
-    let player_events = PlayerEvents::default();
+    let player_events = AccountEvents::default();
     let treasury_events = TreasuryEvents::default();
     let ledger = LedgerService::new(player_events.clone(), treasury_events.clone());
     for player in starting_players(&settings.catalog) {
-        info!(id = %player.id, gold = player.gold.0, items = ?player.items, "player created");
-        ledger.open_player(player).await.expect("new player");
+        info!(id = %player.id, gold = player.funds.0, items = ?player.items, "player created");
+        ledger.open_account(player).await.expect("new player");
     }
 
     // Read models of the ledger, caught up with its events on every read.

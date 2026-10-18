@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use agora_core::AuctionService;
@@ -10,18 +9,19 @@ use agora_domain::{
     SearchQuery, Timestamp,
 };
 use event_sourcing::memory::InMemoryEventStore;
-use event_sourcing::{EventStore, Projection, Projector, Recorded, StoreError};
-use game_api::{GameApi, LedgerApi, SellCommand};
-use game_domain::{
-    CatalogEntry, GameError, Player, PlayerEvent, TakenReason, TreasuryEvent, TreasuryId,
-};
+use event_sourcing::{EventStore, Projection, Projector};
+use game_api::{GameApi, SellCommand};
+use game_domain::{CatalogEntry, GameError, Player};
 use game_spi::{PlayerView, TreasuryView};
+use ledger::{
+    AccountEvent, LedgerApi, LedgerError, LedgerService, TakenReason, TreasuryEvent, TreasuryId,
+};
 use uuid::Uuid;
 
 use crate::memory::{
     InMemoryHouseRegistry, InMemoryPlayerProjection, InMemoryTreasuryProjection, StaticCatalog,
 };
-use crate::{CaughtUpView, GameService, LedgerService};
+use crate::{CaughtUpView, GameService};
 
 type Agora = AuctionService<
     InMemoryAuctionRepository,
@@ -159,15 +159,15 @@ fn op(n: u128) -> OpId {
     OpId(Uuid::from_u128(n))
 }
 
-type PlayerEvents = InMemoryEventStore<PlayerRef, PlayerEvent>;
+type AccountEvents = InMemoryEventStore<PlayerRef, AccountEvent>;
 type TreasuryEvents = InMemoryEventStore<TreasuryId, TreasuryEvent>;
 
 /// The ledger with Alice opened (100 copper, 5 cloths), and projectors feeding fresh read
 /// models from its event stores.
 struct Ledger {
-    ledger: LedgerService<PlayerEvents, TreasuryEvents>,
+    ledger: LedgerService<AccountEvents, TreasuryEvents>,
     players: InMemoryPlayerProjection,
-    player_projector: Projector<PlayerEvents, InMemoryPlayerProjection, PlayerRef, PlayerEvent>,
+    player_projector: Projector<AccountEvents, InMemoryPlayerProjection, PlayerRef, AccountEvent>,
     treasury: InMemoryTreasuryProjection,
     treasury_projector:
         Projector<TreasuryEvents, InMemoryTreasuryProjection, TreasuryId, TreasuryEvent>,
@@ -175,11 +175,11 @@ struct Ledger {
 
 impl Ledger {
     async fn new() -> Self {
-        let player_events = PlayerEvents::default();
+        let player_events = AccountEvents::default();
         let treasury_events = TreasuryEvents::default();
         let ledger = LedgerService::new(player_events.clone(), treasury_events.clone());
         ledger
-            .open_player(Player::new(alice(), Money(100)).with_item(cloth(), 5))
+            .open_account(Player::new(alice(), Money(100)).with_item(cloth(), 5))
             .await
             .unwrap();
         let players = InMemoryPlayerProjection::default();
@@ -218,7 +218,7 @@ async fn ledger_moves_gold_and_items() {
     assert_eq!(fixture.players.list().await.unwrap(), vec![]);
 
     let alice = fixture.alice().await;
-    assert_eq!(alice.gold, Money(75));
+    assert_eq!(alice.funds, Money(75));
     assert_eq!(alice.quantity(&cloth()), 2);
 }
 
@@ -232,7 +232,7 @@ async fn replayed_op_is_applied_once() {
             .await
             .unwrap();
     }
-    assert_eq!(fixture.alice().await.gold, Money(70));
+    assert_eq!(fixture.alice().await.funds, Money(70));
 }
 
 #[tokio::test]
@@ -243,26 +243,15 @@ async fn failed_ledger_call_leaves_player_unchanged() {
         .debit(op(1), &alice(), Money(101))
         .await
         .unwrap_err();
-    assert_eq!(err, GameError::InsufficientFunds);
-    assert_eq!(fixture.alice().await.gold, Money(100));
+    assert_eq!(err, LedgerError::InsufficientFunds);
+    assert_eq!(fixture.alice().await.funds, Money(100));
 
     let err = fixture
         .ledger
         .debit(op(2), &"nobody".into(), Money(1))
         .await
         .unwrap_err();
-    assert_eq!(err, GameError::UnknownPlayer("nobody".into()));
-}
-
-#[tokio::test]
-async fn opening_a_player_twice_fails() {
-    let fixture = Ledger::new().await;
-    let err = fixture
-        .ledger
-        .open_player(Player::new(alice(), Money(0)))
-        .await
-        .unwrap_err();
-    assert_eq!(err, GameError::PlayerExists(alice()));
+    assert_eq!(err, LedgerError::UnknownAccount("nobody".into()));
 }
 
 #[tokio::test]
@@ -288,10 +277,10 @@ async fn taken_money_goes_to_the_treasury_once() {
 
 #[tokio::test]
 async fn projection_rebuilds_from_the_events() {
-    let player_events = PlayerEvents::default();
+    let player_events = AccountEvents::default();
     let ledger = LedgerService::new(player_events.clone(), TreasuryEvents::default());
     ledger
-        .open_player(Player::new(alice(), Money(100)))
+        .open_account(Player::new(alice(), Money(100)))
         .await
         .unwrap();
     for n in 1..=300 {
@@ -302,15 +291,15 @@ async fn projection_rebuilds_from_the_events() {
     let projector = Projector::new(player_events, players.clone());
     assert_eq!(projector.catch_up().await.unwrap(), 301);
     assert_eq!(projector.catch_up().await.unwrap(), 0);
-    assert_eq!(players.get(&alice()).unwrap().gold, Money(400));
+    assert_eq!(players.get(&alice()).unwrap().funds, Money(400));
 }
 
 #[tokio::test]
 async fn projection_skips_replayed_events() {
-    let player_events = PlayerEvents::default();
+    let player_events = AccountEvents::default();
     let ledger = LedgerService::new(player_events.clone(), TreasuryEvents::default());
     ledger
-        .open_player(Player::new(alice(), Money(100)))
+        .open_account(Player::new(alice(), Money(100)))
         .await
         .unwrap();
     ledger.credit(op(1), &alice(), Money(5)).await.unwrap();
@@ -319,66 +308,19 @@ async fn projection_skips_replayed_events() {
     let batch = player_events.read_all(0, 10).await.unwrap();
     players.apply(&batch).await.unwrap();
     players.apply(&batch).await.unwrap();
-    assert_eq!(players.get(&alice()).unwrap().gold, Money(105));
-}
-
-/// Fails the first append with a conflict, as if another write happened in between.
-struct ConflictOnce<S> {
-    inner: S,
-    conflicted: AtomicBool,
-}
-
-impl<S: EventStore<PlayerRef, PlayerEvent>> EventStore<PlayerRef, PlayerEvent> for ConflictOnce<S> {
-    async fn load(&self, stream: &PlayerRef) -> Result<Vec<PlayerEvent>, StoreError> {
-        self.inner.load(stream).await
-    }
-
-    async fn append(
-        &self,
-        stream: &PlayerRef,
-        expected: u64,
-        events: Vec<PlayerEvent>,
-    ) -> Result<u64, StoreError> {
-        if !self.conflicted.swap(true, Ordering::SeqCst) {
-            return Err(StoreError::Conflict);
-        }
-        self.inner.append(stream, expected, events).await
-    }
-
-    async fn read_all(
-        &self,
-        after: u64,
-        limit: usize,
-    ) -> Result<Vec<Recorded<PlayerRef, PlayerEvent>>, StoreError> {
-        self.inner.read_all(after, limit).await
-    }
-}
-
-#[tokio::test]
-async fn ledger_retries_on_conflict() {
-    let player_events = PlayerEvents::default();
-    let store = ConflictOnce {
-        inner: player_events.clone(),
-        conflicted: AtomicBool::new(false),
-    };
-    let ledger = LedgerService::new(store, TreasuryEvents::default());
-    ledger
-        .open_player(Player::new(alice(), Money(100)))
-        .await
-        .unwrap();
-    assert_eq!(player_events.load(&alice()).await.unwrap().len(), 1);
+    assert_eq!(players.get(&alice()).unwrap().funds, Money(105));
 }
 
 #[tokio::test]
 async fn caught_up_views_show_every_recorded_event() {
-    let player_events = PlayerEvents::default();
+    let player_events = AccountEvents::default();
     let treasury_events = TreasuryEvents::default();
     let ledger = LedgerService::new(player_events.clone(), treasury_events.clone());
     let players = CaughtUpView::new(player_events, InMemoryPlayerProjection::default());
     let treasury = CaughtUpView::new(treasury_events, InMemoryTreasuryProjection::default());
 
     ledger
-        .open_player(Player::new(alice(), Money(100)))
+        .open_account(Player::new(alice(), Money(100)))
         .await
         .unwrap();
     ledger.debit(op(1), &alice(), Money(30)).await.unwrap();

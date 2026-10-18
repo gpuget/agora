@@ -5,8 +5,9 @@ use std::sync::{Arc, Mutex};
 
 use agora_domain::{AuctionHouse, ItemType, Money, PlayerRef};
 use event_sourcing::{Projection, Recorded, StoreError};
-use game_domain::{CatalogEntry, GameError, Player, PlayerEvent, TreasuryEvent, TreasuryId};
+use game_domain::{CatalogEntry, GameError, Player};
 use game_spi::{Catalog, HouseRegistry, PlayerView, TreasuryView};
+use ledger::{Account, AccountEvent, TreasuryEvent, TreasuryId};
 
 #[derive(Default)]
 struct PlayersState {
@@ -24,19 +25,19 @@ impl InMemoryPlayerProjection {
     }
 }
 
-impl Projection<PlayerRef, PlayerEvent> for InMemoryPlayerProjection {
+impl Projection<PlayerRef, AccountEvent> for InMemoryPlayerProjection {
     async fn checkpoint(&self) -> Result<u64, StoreError> {
         Ok(self.0.lock().unwrap().checkpoint)
     }
 
-    async fn apply(&self, events: &[Recorded<PlayerRef, PlayerEvent>]) -> Result<(), StoreError> {
+    async fn apply(&self, events: &[Recorded<PlayerRef, AccountEvent>]) -> Result<(), StoreError> {
         let mut state = self.0.lock().unwrap();
         for recorded in events {
             if recorded.position <= state.checkpoint {
                 continue;
             }
             let player = state.players.remove(&recorded.stream);
-            if let Some(player) = Player::apply(player, &recorded.event) {
+            if let Some(player) = Account::apply(player, &recorded.event) {
                 state.players.insert(recorded.stream.clone(), player);
             }
             state.checkpoint = recorded.position;
