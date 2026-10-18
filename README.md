@@ -29,7 +29,7 @@ Prerequisites:
 ## Tests
 
 ```
-cargo test -p agora-domain -p agora-core -p game-domain -p game-core
+cargo test -p agora-domain -p agora-core -p event-sourcing -p game-domain -p game-core
 ```
 
 ## Run locally
@@ -53,7 +53,7 @@ cd game/ui
 trunk serve
 ```
 
-The app is at <http://127.0.0.1:3000>. Requests to `/api/` are proxied to the game server (see `game/ui/Trunk.toml`). Pick a player in the header: there is no authentication.
+The app is at <http://127.0.0.1:3000> and refreshes every second. Requests to `/api/` are proxied to the game server (see `game/ui/Trunk.toml`). Pick a player in the header: there is no authentication.
 
 ## Production build of the UI
 

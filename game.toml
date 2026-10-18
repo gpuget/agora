@@ -13,7 +13,7 @@ settle_every_secs = 1
 # Log level per target: trace, debug, info, warn, error or off. `default` sets the level of
 # every target not listed. The RUST_LOG environment variable overrides the whole table.
 # debug on game_core shows every ledger call Agora makes, with its OpId.
-# debug on tower_http shows every HTTP response (the ui polls every 2 seconds).
+# debug on tower_http shows every HTTP response (the ui polls every second).
 [log]
 game_server = "debug"
 game_core = "debug"
