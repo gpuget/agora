@@ -98,7 +98,7 @@ Ordre dans `place_bid` et `buyout` :
 
 Prototype : aucune garantie si un port échoue au milieu d'un cas d'usage (de l'or ou un objet peut être perdu).
 
-Cible : outbox transactionnelle. Les effets externes sont écrits en base dans la même transaction que le changement d'état (`pending_operations`), puis exécutés et rejoués jusqu'à succès. Pour préparer cette cible, tous les appels `Inventory`, `Wallet` et `MoneySink` portent déjà un `OpId` unique ; le jeu devra ignorer un `OpId` déjà appliqué.
+Cible : outbox transactionnelle. Les effets externes sont écrits en base dans la même transaction que le changement d'état (`pending_operations`), puis exécutés et rejoués jusqu'à succès. Pour préparer cette cible, tous les appels `Inventory`, `Wallet` et `MoneySink` portent déjà un `OpId`, et le jeu ignore un `OpId` déjà appliqué. Un effet d'un changement d'annonce enregistré (remboursement, livraison, paiement du vendeur, commission, retour de la pile, dépôt perdu) reçoit un `OpId` dérivé de l'annonce, de sa version et de l'effet : le rejouer donne le même `OpId`. Un débit qui ouvre une nouvelle tentative reçoit un `OpId` neuf, et sa compensation un `OpId` dérivé du débit.
 
 ## 9. Jeu de démonstration
 
@@ -118,7 +118,7 @@ Cible : outbox transactionnelle. Les effets externes sont écrits en base dans l
 ## 11. Limites connues
 
 - **Pannes** : aucune protection (section 8). Si un port échoue au milieu d'un cas d'usage, de l'or ou un objet peut être perdu ou dupliqué.
-- **Idempotence** : l'`OpId` est transmis à chaque appel `Inventory`, `Wallet` et `MoneySink`, mais ni les adaptateurs en mémoire ni le jeu de démo ne dédupliquent encore un `OpId` déjà appliqué.
+- **Idempotence** : le grand livre du jeu ignore un `OpId` déjà appliqué, mais les adaptateurs en mémoire d'`agora-core` ne dédupliquent pas. Sans outbox, Agora ne rejoue encore aucun effet : la déduplication ne servira qu'avec elle.
 - **Persistance** : le repository, les joueurs, l'or et les inventaires sont en mémoire. Tout l'état est perdu au redémarrage du serveur `game-server`.
 - **Authentification** : aucune. L'interface choisit le joueur dans une liste, et l'API HTTP du jeu accepte n'importe quel `PlayerRef`.
 - **Règlement** : `settle_expired` traite au plus 100 ventes par appel ; le surplus est traité aux appels suivants. Le règlement à l'expiration est couvert par les tests de `agora-core`, mais n'a pas été vérifié de bout en bout via l'API HTTP.

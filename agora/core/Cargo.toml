@@ -11,7 +11,7 @@ memory = []
 agora-domain.workspace = true
 agora-api.workspace = true
 agora-spi.workspace = true
-uuid = { workspace = true, features = ["v7"] }
+uuid = { workspace = true, features = ["v5", "v7"] }
 
 [dev-dependencies]
 serde_json.workspace = true

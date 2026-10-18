@@ -12,6 +12,7 @@ use crate::AuctionService;
 use crate::memory::{
     InMemoryAuctionRepository, InMemoryInventory, InMemoryWallet, ManualClock, RecordingMoneySink,
 };
+use crate::service::{COMMISSION, PAY_SELLER, compensation_op, effect_op, new_op};
 
 type Service<R = InMemoryAuctionRepository> =
     AuctionService<R, InMemoryInventory, InMemoryWallet, RecordingMoneySink, ManualClock>;
@@ -710,4 +711,37 @@ async fn bid_conflict_is_retried_without_double_debit() {
     let listing = service.repository().inner.listing(id).unwrap();
     assert_eq!(listing.high_bid.unwrap().bidder, bob());
     assert_eq!(listing.version, 1);
+}
+
+// ---- operation ids ----
+
+#[tokio::test]
+async fn effect_ops_name_one_effect_of_one_listing_change() {
+    let (service, house) = setup().await;
+    let id = service
+        .create_listing(listing_cmd(house, 10, None))
+        .await
+        .unwrap();
+    let listing = stored(&service, id);
+    let op = effect_op(&listing, PAY_SELLER);
+    assert_eq!(effect_op(&listing, PAY_SELLER), op);
+    assert_ne!(effect_op(&listing, COMMISSION), op);
+
+    let mut next = listing.clone();
+    next.version += 1;
+    assert_ne!(effect_op(&next, PAY_SELLER), op);
+
+    let other = service
+        .create_listing(listing_cmd(house, 10, None))
+        .await
+        .unwrap();
+    assert_ne!(effect_op(&stored(&service, other), PAY_SELLER), op);
+}
+
+#[test]
+fn compensation_op_is_derived_from_the_undone_call() {
+    let op = new_op();
+    assert_eq!(compensation_op(op), compensation_op(op));
+    assert_ne!(compensation_op(op), op);
+    assert_ne!(compensation_op(new_op()), compensation_op(op));
 }

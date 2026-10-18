@@ -86,16 +86,20 @@ where
         }
     }
 
-    /// Saves after `payer` was debited `paid`. Refunds the payer if the save does not go through.
+    /// Saves after `payer` was debited `paid` by the call `debit`. Refunds the payer if the
+    /// save does not go through.
     async fn save_or_refund(
         &self,
         listing: &mut Listing,
         payer: &PlayerRef,
         paid: Money,
+        debit: OpId,
     ) -> Result<bool, AuctionError> {
         let saved = self.save(listing).await;
         if !matches!(saved, Ok(true)) {
-            self.wallet.credit(op(), payer, paid).await?;
+            self.wallet
+                .credit(compensation_op(debit), payer, paid)
+                .await?;
         }
         saved
     }
@@ -104,7 +108,9 @@ where
         let amount = listing
             .total(bid.unit_price)
             .ok_or(AuctionError::Overflow)?;
-        self.wallet.credit(op(), &bid.bidder, amount).await?;
+        self.wallet
+            .credit(effect_op(listing, REFUND_BID), &bid.bidder, amount)
+            .await?;
         Ok(())
     }
 
@@ -122,15 +128,22 @@ where
             .and_then(|m| m.checked_add(listing.deposit))
             .ok_or(AuctionError::Overflow)?;
         self.inventory
-            .deposit_item(op(), buyer, &listing.item)
+            .deposit_item(effect_op(listing, DELIVER_ITEM), buyer, &listing.item)
             .await?;
-        self.wallet.credit(op(), &listing.seller, proceeds).await?;
+        self.wallet
+            .credit(effect_op(listing, PAY_SELLER), &listing.seller, proceeds)
+            .await?;
         if commission > Money::ZERO {
             let reason = SinkReason::Commission {
                 listing: listing.id,
             };
             self.sink
-                .absorb(op(), listing.house, commission, reason)
+                .absorb(
+                    effect_op(listing, COMMISSION),
+                    listing.house,
+                    commission,
+                    reason,
+                )
                 .await?;
         }
         Ok(())
@@ -139,14 +152,23 @@ where
     /// Returns the stack to the seller and forfeits the deposit.
     async fn return_unsold(&self, listing: &Listing) -> Result<(), AuctionError> {
         self.inventory
-            .deposit_item(op(), &listing.seller, &listing.item)
+            .deposit_item(
+                effect_op(listing, RETURN_ITEM),
+                &listing.seller,
+                &listing.item,
+            )
             .await?;
         if listing.deposit > Money::ZERO {
             let reason = SinkReason::ForfeitedDeposit {
                 listing: listing.id,
             };
             self.sink
-                .absorb(op(), listing.house, listing.deposit, reason)
+                .absorb(
+                    effect_op(listing, FORFEIT_DEPOSIT),
+                    listing.house,
+                    listing.deposit,
+                    reason,
+                )
                 .await?;
         }
         Ok(())
@@ -159,7 +181,8 @@ where
         }
         let unit_price = listing.buyout_unit_price.ok_or(AuctionError::NoBuyout)?;
         let total = listing.total(unit_price).ok_or(AuctionError::Overflow)?;
-        self.wallet.debit(op(), buyer, total).await?;
+        let debit = new_op();
+        self.wallet.debit(debit, buyer, total).await?;
 
         let previous = listing.high_bid.clone();
         let mut sold = listing;
@@ -167,7 +190,7 @@ where
             buyer: buyer.clone(),
             unit_price,
         };
-        if !self.save_or_refund(&mut sold, buyer, total).await? {
+        if !self.save_or_refund(&mut sold, buyer, total, debit).await? {
             return Ok(false);
         }
 
@@ -208,7 +231,8 @@ where
             return Err(AuctionError::BidTooLow { minimum });
         }
         let total = listing.total(unit_price).ok_or(AuctionError::Overflow)?;
-        self.wallet.debit(op(), bidder, total).await?;
+        let debit = new_op();
+        self.wallet.debit(debit, bidder, total).await?;
 
         let previous = listing.high_bid.clone();
         let mut updated = listing;
@@ -216,7 +240,10 @@ where
             bidder: bidder.clone(),
             unit_price,
         });
-        if !self.save_or_refund(&mut updated, bidder, total).await? {
+        if !self
+            .save_or_refund(&mut updated, bidder, total, debit)
+            .await?
+        {
             return Ok(None);
         }
 
@@ -292,14 +319,15 @@ where
             .checked_add(cmd.duration)
             .ok_or(AuctionError::Overflow)?;
 
+        let withdraw = new_op();
         self.inventory
-            .withdraw_item(op(), &cmd.seller, &cmd.item)
+            .withdraw_item(withdraw, &cmd.seller, &cmd.item)
             .await?;
         if deposit > Money::ZERO
-            && let Err(e) = self.wallet.debit(op(), &cmd.seller, deposit).await
+            && let Err(e) = self.wallet.debit(new_op(), &cmd.seller, deposit).await
         {
             self.inventory
-                .deposit_item(op(), &cmd.seller, &cmd.item)
+                .deposit_item(compensation_op(withdraw), &cmd.seller, &cmd.item)
                 .await?;
             return Err(e.into());
         }
@@ -408,8 +436,30 @@ where
     }
 }
 
-fn op() -> OpId {
+// Effects of a committed listing change, named in their `OpId`.
+pub(crate) const REFUND_BID: &str = "refund_bid";
+pub(crate) const DELIVER_ITEM: &str = "deliver_item";
+pub(crate) const PAY_SELLER: &str = "pay_seller";
+pub(crate) const COMMISSION: &str = "commission";
+pub(crate) const RETURN_ITEM: &str = "return_item";
+pub(crate) const FORFEIT_DEPOSIT: &str = "forfeit_deposit";
+
+/// Id of a call that starts a new attempt, such as the debit of a bid. A retried use case
+/// is a new attempt, so it gets a new id.
+pub(crate) fn new_op() -> OpId {
     OpId(Uuid::now_v7())
+}
+
+/// Id of one effect of a committed listing change. `listing` is the saved listing: its id
+/// and version name the change, so every replay of the effect gets the same id.
+pub(crate) fn effect_op(listing: &Listing, effect: &str) -> OpId {
+    let name = format!("{}/{effect}", listing.version);
+    OpId(Uuid::new_v5(&listing.id.0, name.as_bytes()))
+}
+
+/// Id of the call that undoes the call `op`, so a replayed compensation is ignored too.
+pub(crate) fn compensation_op(op: OpId) -> OpId {
+    OpId(Uuid::new_v5(&op.0, b"compensation"))
 }
 
 fn repo_error(error: RepoError) -> AuctionError {
