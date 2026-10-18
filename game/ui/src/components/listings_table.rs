@@ -24,7 +24,8 @@ pub fn ListingsTable(props: &ListingsTableProps) -> Html {
                 <thead>
                     <tr>
                         <th>{ "Objet" }</th><th>{ "Qté" }</th><th>{ "Vendeur" }</th>
-                        <th>{ "Enchère / u" }</th><th>{ "Achat immédiat / u" }</th>
+                        <th>{ "Enchère / u" }</th><th>{ "Enchère (lot)" }</th>
+                        <th>{ "Achat immédiat / u" }</th><th>{ "Achat immédiat (lot)" }</th>
                         <th>{ "Meilleur enchérisseur" }</th><th>{ "Temps restant" }</th><th></th>
                     </tr>
                 </thead>

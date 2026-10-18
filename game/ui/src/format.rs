@@ -19,6 +19,19 @@ pub fn money(amount: Money) -> String {
     parts.join(" ")
 }
 
+/// Converts a price typed by the user into a unit price. In total mode the
+/// stack price is divided by the quantity, rounded to the nearest pc.
+pub fn unit_price(raw: &str, quantity: u64, total: bool) -> Option<u64> {
+    let value = raw.parse::<u64>().ok()?;
+    if !total {
+        return Some(value);
+    }
+    if quantity == 0 {
+        return None;
+    }
+    Some((value + quantity / 2) / quantity)
+}
+
 pub fn time_left(now: Timestamp, end: Timestamp) -> String {
     let secs = now.until(end).as_secs();
     if secs == 0 {

@@ -11,7 +11,7 @@ use crate::components::{
 };
 use crate::format::{base_value, item_name};
 
-const REFRESH_MS: u32 = 2_000;
+const REFRESH_MS: u32 = 1_000;
 
 /// Bumped to trigger a refresh.
 #[derive(Default, PartialEq)]

@@ -3,7 +3,7 @@ use game_dto::{CreateListingRequest, HouseView};
 use yew::prelude::*;
 
 use crate::api::Action;
-use crate::format::{input_value, money, select_value};
+use crate::format::{input_value, money, select_value, unit_price};
 
 #[derive(Clone, PartialEq)]
 pub struct SellItem {
@@ -27,6 +27,7 @@ pub fn SellForm(props: &SellFormProps) -> Html {
     let quantity = use_state(|| "1".to_string());
     let start = use_state(String::new);
     let buyout = use_state(String::new);
+    let total_mode = use_state(|| false);
     let duration = use_state(|| props.house.durations.first().map_or(0, |d| d.secs));
 
     let text_input = |state: &UseStateHandle<String>| {
@@ -37,17 +38,22 @@ pub fn SellForm(props: &SellFormProps) -> Html {
         let item = item.clone();
         Callback::from(move |e: Event| item.set(Some(ItemType(select_value(&e)))))
     };
+    let on_price_mode = {
+        let total_mode = total_mode.clone();
+        Callback::from(move |e: Event| total_mode.set(select_value(&e) == "total"))
+    };
     let on_duration = {
         let duration = duration.clone();
         Callback::from(move |e: Event| duration.set(select_value(&e).parse().unwrap_or(0)))
     };
     let on_submit = {
-        let (item, quantity, start, buyout, duration) = (
+        let (item, quantity, start, buyout, duration, total_mode) = (
             item.clone(),
             quantity.clone(),
             start.clone(),
             buyout.clone(),
             duration.clone(),
+            total_mode.clone(),
         );
         let (house, seller, on_action) = (
             props.house.id,
@@ -59,10 +65,14 @@ pub fn SellForm(props: &SellFormProps) -> Html {
             let Some(item_type) = (*item).clone() else {
                 return;
             };
-            let (Ok(quantity), Ok(start)) = (quantity.parse::<u32>(), start.parse::<u64>()) else {
+            let Ok(quantity) = quantity.parse::<u32>() else {
                 return;
             };
-            let buyout = buyout.parse::<u64>().ok().map(Money);
+            let total = *total_mode;
+            let Some(start) = unit_price(&start, u64::from(quantity), total) else {
+                return;
+            };
+            let buyout = unit_price(&buyout, u64::from(quantity), total).map(Money);
             on_action.emit(Action::Sell(CreateListingRequest {
                 house,
                 seller: seller.clone(),
@@ -73,6 +83,16 @@ pub fn SellForm(props: &SellFormProps) -> Html {
                 duration_secs: *duration,
             }));
         })
+    };
+
+    let preview = |raw: &str| {
+        let unit = unit_price(raw, quantity.parse().ok()?, *total_mode)?;
+        Some(format!("= {} / u", money(Money(unit))))
+    };
+    let (start_preview, buyout_preview) = if *total_mode {
+        (preview(&start), preview(&buyout))
+    } else {
+        (None, None)
     };
 
     // Same formula as the auction core: base value x quantity x rate x duration multiplier.
@@ -108,12 +128,20 @@ pub fn SellForm(props: &SellFormProps) -> Html {
             <label>{ "Quantité" }
                 <input type="number" min="1" value={(*quantity).clone()} oninput={text_input(&quantity)} />
             </label>
-            <label>{ "Mise à prix / u (pc)" }
+            <label>{ "Saisie des prix" }
+                <select onchange={on_price_mode}>
+                    <option value="unit" selected={!*total_mode}>{ "Prix unitaire" }</option>
+                    <option value="total" selected={*total_mode}>{ "Prix du lot" }</option>
+                </select>
+            </label>
+            <label>{ if *total_mode { "Mise à prix du lot (pc)" } else { "Mise à prix / u (pc)" } }
                 <input type="number" min="1" value={(*start).clone()} oninput={text_input(&start)} />
             </label>
-            <label>{ "Achat immédiat / u (pc, optionnel)" }
+            if let Some(text) = start_preview { <p class="deposit">{ text }</p> }
+            <label>{ if *total_mode { "Achat immédiat du lot (pc, optionnel)" } else { "Achat immédiat / u (pc, optionnel)" } }
                 <input type="number" min="1" value={(*buyout).clone()} oninput={text_input(&buyout)} />
             </label>
+            if let Some(text) = buyout_preview { <p class="deposit">{ text }</p> }
             <label>{ "Durée" }
                 <select onchange={on_duration}>
                     { for props.house.durations.iter().map(|d| html! {
