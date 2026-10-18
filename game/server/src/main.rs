@@ -1,7 +1,9 @@
 //! Demo game server: wires the game core, the Agora core and their adapters.
 
 mod adapters;
+mod settings;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -20,6 +22,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::adapters::agora_bridge::AgoraBridge;
 use crate::adapters::clock::SystemClock;
+use crate::settings::Settings;
 
 type PlayerEvents = InMemoryEventStore<PlayerRef, PlayerEvent>;
 type TreasuryEvents = InMemoryEventStore<TreasuryId, TreasuryEvent>;
@@ -32,10 +35,6 @@ pub type Game = GameService<Players, StaticCatalog, InMemoryHouseRegistry, Treas
 
 /// 1 gold = 100 silver = 10 000 copper. Amounts are in copper.
 const GOLD: u64 = 10_000;
-const SETTLE_EVERY: Duration = Duration::from_secs(1);
-/// Log filter when `RUST_LOG` is not set. `RUST_LOG=game_server=debug,game_core=debug,tower_http=debug`
-/// shows ledger calls and every HTTP response.
-const DEFAULT_LOG: &str = "game_server=info,game_core=info,tower_http=info";
 
 fn catalog() -> Vec<CatalogEntry> {
     [
@@ -95,11 +94,25 @@ fn starting_players() -> Vec<Player> {
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG)),
-        )
-        .init();
+    let path = PathBuf::from(
+        std::env::var("GAME_CONFIG").unwrap_or_else(|_| settings::DEFAULT_PATH.into()),
+    );
+    let read = Settings::read(&path).unwrap_or_else(|e| panic!("{e}"));
+    let found = read.is_some();
+    let settings = read.unwrap_or_default();
+
+    // RUST_LOG overrides the log table of the settings.
+    let filter = match EnvFilter::try_from_default_env() {
+        Ok(filter) => filter,
+        Err(_) => EnvFilter::try_new(settings.log_filter())
+            .unwrap_or_else(|e| panic!("invalid log table in {}: {e}", path.display())),
+    };
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+    if found {
+        info!(path = %path.display(), "settings read");
+    } else {
+        info!(path = %path.display(), "no settings file, using defaults");
+    }
 
     let player_events = PlayerEvents::default();
     let treasury_events = TreasuryEvents::default();
@@ -140,8 +153,9 @@ async fn main() {
     }
 
     let settler = game.clone();
+    let settle_every = settings.settle_every();
     tokio::spawn(async move {
-        let mut tick = tokio::time::interval(SETTLE_EVERY);
+        let mut tick = tokio::time::interval(settle_every);
         loop {
             tick.tick().await;
             if let Err(error) = settler.settle_auctions().await {
@@ -151,7 +165,7 @@ async fn main() {
     });
 
     let app = adapters::http::router(game);
-    let addr = std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".into());
+    let addr = std::env::var("BIND_ADDR").unwrap_or(settings.bind_addr);
     let listener = tokio::net::TcpListener::bind(&addr)
         .await
         .unwrap_or_else(|e| panic!("bind {addr}: {e}"));

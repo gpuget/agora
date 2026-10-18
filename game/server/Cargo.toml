@@ -13,8 +13,10 @@ game-core = { workspace = true, features = ["memory"] }
 game-spi.workspace = true
 game-dto.workspace = true
 axum.workspace = true
+serde.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tower-http = { version = "0.7.1", features = ["trace"] }
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 uuid.workspace = true
+toml = "1.1.8"

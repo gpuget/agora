@@ -1,0 +1,17 @@
+# Settings of game-server, read from the working directory. Set GAME_CONFIG to read another
+# file. Every key is optional: a missing key takes the value shown here.
+
+# Listen address of the HTTP API. The BIND_ADDR environment variable overrides it.
+bind_addr = "127.0.0.1:8080"
+
+# Delay in seconds between two settlements of expired auctions. Must be greater than zero.
+settle_every_secs = 1
+
+# Log level per target: trace, debug, info, warn, error or off. `default` sets the level of
+# every target not listed. The RUST_LOG environment variable overrides the whole table.
+# debug on game_core shows every ledger call Agora makes, with its OpId.
+# debug on tower_http shows every HTTP response (the ui polls every 2 seconds).
+[log]
+game_server = "debug"
+game_core = "debug"
+tower_http = "info"
