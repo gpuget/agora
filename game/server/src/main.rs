@@ -3,26 +3,26 @@
 mod adapters;
 mod settings;
 
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 
 use agora_core::AuctionService;
 use agora_core::memory::InMemoryAuctionRepository;
-use agora_domain::{Bps, DurationOption, HouseConfig, Money, PlayerRef};
+use agora_domain::{Money, PlayerRef};
 use game_api::{GameApi, LedgerApi};
 use game_core::memory::{
     InMemoryEventStore, InMemoryHouseRegistry, InMemoryPlayerProjection,
     InMemoryTreasuryProjection, StaticCatalog,
 };
 use game_core::{CaughtUpView, GameService, LedgerService};
-use game_domain::{CatalogEntry, Player, PlayerEvent, TreasuryEvent, TreasuryId};
+use game_domain::{Player, PlayerEvent, TreasuryEvent, TreasuryId};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 use crate::adapters::agora_bridge::AgoraBridge;
 use crate::adapters::clock::SystemClock;
-use crate::settings::Settings;
+use crate::settings::{CatalogSettings, Settings};
 
 type PlayerEvents = InMemoryEventStore<PlayerRef, PlayerEvent>;
 type TreasuryEvents = InMemoryEventStore<TreasuryId, TreasuryEvent>;
@@ -36,60 +36,30 @@ pub type Game = GameService<Players, StaticCatalog, InMemoryHouseRegistry, Treas
 /// 1 gold = 100 silver = 10 000 copper. Amounts are in copper.
 const GOLD: u64 = 10_000;
 
-fn catalog() -> Vec<CatalogEntry> {
-    [
-        ("linen_cloth", "Étoffe de lin", 13),
-        ("copper_ore", "Minerai de cuivre", 5),
-        ("healing_potion", "Potion de soins", 250),
-        ("iron_sword", "Épée en fer", 4_500),
-    ]
-    .into_iter()
-    .map(|(item_type, name, base_value)| CatalogEntry {
-        item_type: item_type.into(),
-        name: name.into(),
-        base_value: Money(base_value),
-    })
-    .collect()
-}
+const PLAYER_IDS: [&str; 3] = ["alice", "bob", "carol"];
 
-fn house_config(name: &str, commission: Bps) -> HouseConfig {
-    let minutes = |m: u64| Duration::from_secs(m * 60);
-    HouseConfig {
-        name: name.into(),
-        commission,
-        min_increment: Money(1),
-        increment: Bps(500),
-        deposit: Bps(1_500),
-        durations: vec![
-            DurationOption {
-                duration: minutes(2),
-                deposit_multiplier: 1,
-            },
-            DurationOption {
-                duration: minutes(10),
-                deposit_multiplier: 2,
-            },
-            DurationOption {
-                duration: minutes(30),
-                deposit_multiplier: 4,
-            },
-        ],
-    }
-}
-
-fn starting_players() -> Vec<Player> {
-    let gold = Money(100 * GOLD);
-    vec![
-        Player::new("alice".into(), gold)
-            .with_item("linen_cloth".into(), 200)
-            .with_item("healing_potion".into(), 20),
-        Player::new("bob".into(), gold)
-            .with_item("copper_ore".into(), 100)
-            .with_item("iron_sword".into(), 2),
-        Player::new("carol".into(), gold)
-            .with_item("linen_cloth".into(), 50)
-            .with_item("healing_potion".into(), 10),
-    ]
+/// Players with 50 to 200 gold and 1 to 3 random item types of the catalog. Each stack is worth
+/// 0.2 to 2 gold, at least one item.
+fn starting_players(catalog: &[CatalogSettings]) -> Vec<Player> {
+    PLAYER_IDS
+        .into_iter()
+        .map(|id| {
+            let gold = Money(rand::random_range(50..=200) * GOLD);
+            let mut player = Player::new(id.into(), gold);
+            let kinds = rand::random_range(1..=catalog.len().min(3));
+            let mut chosen = BTreeSet::new();
+            while chosen.len() < kinds {
+                chosen.insert(rand::random_range(0..catalog.len()));
+            }
+            for index in chosen {
+                let item = catalog[index].entry();
+                let worth = rand::random_range(GOLD / 5..=2 * GOLD);
+                let quantity = (worth / item.base_value.0.max(1)).clamp(1, u32::MAX as u64);
+                player = player.with_item(item.item_type, quantity as u32);
+            }
+            player
+        })
+        .collect()
 }
 
 #[tokio::main]
@@ -100,6 +70,11 @@ async fn main() {
     let read = Settings::read(&path).unwrap_or_else(|e| panic!("{e}"));
     let found = read.is_some();
     let settings = read.unwrap_or_default();
+    assert!(
+        !settings.catalog.is_empty(),
+        "no catalog: {} must list the items of the game",
+        path.display()
+    );
 
     // RUST_LOG overrides the log table of the settings.
     let filter = match EnvFilter::try_from_default_env() {
@@ -117,7 +92,8 @@ async fn main() {
     let player_events = PlayerEvents::default();
     let treasury_events = TreasuryEvents::default();
     let ledger = LedgerService::new(player_events.clone(), treasury_events.clone());
-    for player in starting_players() {
+    for player in starting_players(&settings.catalog) {
+        info!(id = %player.id, gold = player.gold.0, items = ?player.items, "player created");
         ledger.open_player(player).await.expect("new player");
     }
 
@@ -137,19 +113,16 @@ async fn main() {
 
     let game = Arc::new(GameService::new(
         players,
-        StaticCatalog::new(catalog()),
+        StaticCatalog::new(settings.catalog.iter().map(|c| c.entry()).collect()),
         InMemoryHouseRegistry::default(),
         treasury,
         agora,
     ));
 
-    for config in [
-        house_config("Alliance", Bps(500)),
-        house_config("Neutre", Bps(1_500)),
-    ] {
-        game.open_auction_house(config)
+    for house in &settings.houses {
+        game.open_auction_house(house.config())
             .await
-            .expect("valid house config");
+            .unwrap_or_else(|e| panic!("invalid house {}: {e:?}", house.name));
     }
 
     let settler = game.clone();

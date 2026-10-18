@@ -1,5 +1,8 @@
 # Settings of game-server, read from the working directory. Set GAME_CONFIG to read another
-# file. Every key is optional: a missing key takes the value shown here.
+# file. Every top-level key and the [log] table are optional: a missing one takes the value
+# shown here. [[house]] and [[catalog]] are lists: writing one [[house]] replaces both default
+# houses, [[catalog]] has no default and must be listed, and every key inside an entry is
+# required.
 
 # Listen address of the HTTP API. The BIND_ADDR environment variable overrides it.
 bind_addr = "127.0.0.1:8080"
@@ -15,3 +18,59 @@ settle_every_secs = 1
 game_server = "debug"
 game_core = "debug"
 tower_http = "info"
+
+# Auction houses opened at startup. At least one is required. Rates are in basis points
+# (100 = 1%). Amounts are in copper.
+# commission: taken from the final price of a sale.
+# min_increment, increment: absolute (per unit) and relative parts of the minimum bid increment.
+# deposit: rate applied to the total base value of the stack, times the duration multiplier.
+# durations: allowed listing durations in minutes, each once, with a multiplier above zero.
+# House names must be unique.
+
+[[house]]
+name = "Alliance"
+commission = 500
+min_increment = 1
+increment = 500
+deposit = 1500
+durations = [
+  { minutes = 2, deposit_multiplier = 1 },
+  { minutes = 10, deposit_multiplier = 2 },
+  { minutes = 30, deposit_multiplier = 4 },
+]
+
+[[house]]
+name = "Neutre"
+commission = 1500
+min_increment = 1
+increment = 500
+deposit = 1500
+durations = [
+  { minutes = 2, deposit_multiplier = 1 },
+  { minutes = 10, deposit_multiplier = 2 },
+  { minutes = 30, deposit_multiplier = 4 },
+]
+
+# Item types the game knows. base_value is the value of one item, in copper
+# (1 gold = 100 silver = 10 000 copper). item_type must be unique and base_value above zero.
+# The starting players (alice, bob, carol) get random gold and a random choice of these items.
+
+[[catalog]]
+item_type = "linen_cloth"
+name = "Étoffe de lin"
+base_value = 13
+
+[[catalog]]
+item_type = "copper_ore"
+name = "Minerai de cuivre"
+base_value = 5
+
+[[catalog]]
+item_type = "healing_potion"
+name = "Potion de soins"
+base_value = 250
+
+[[catalog]]
+item_type = "iron_sword"
+name = "Épée en fer"
+base_value = 4500

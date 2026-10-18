@@ -41,7 +41,7 @@ cargo run -p game-server
 
 The API is under <http://127.0.0.1:8080/api/>. State is in memory and lost on restart.
 
-Settings are read from `game.toml` in the working directory (set `GAME_CONFIG` to read another file): listen address, settlement delay (every second by default) and log levels per target. Every key is optional; without the file the server uses the defaults shown in it. Environment variables override the file: `BIND_ADDR` for the listen address, `RUST_LOG` for the whole log table.
+Settings are read from `game.toml` in the working directory (set `GAME_CONFIG` to read another file): listen address, settlement delay (every second by default), log levels per target, auction houses (`[[house]]`), item catalog (`[[catalog]]`). Every key is optional except `[[catalog]]`, which has no default: without a catalog the server refuses to start. Environment variables override the file: `BIND_ADDR` for the listen address, `RUST_LOG` for the whole log table.
 
 Logs go to stdout. With the default log table, they show business events, rejected requests, settlement and every ledger call Agora makes to the game (with its `OpId`). Set `tower_http` to `debug` to also log every HTTP response, or every level to `info` to keep only business events, rejected requests and settlement.
 
