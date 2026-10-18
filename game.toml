@@ -1,7 +1,7 @@
 # Settings of game-server, read from the working directory. Set GAME_CONFIG to read another
 # file. Every top-level key and the [log] table are optional: a missing one takes the value
-# shown here. [[house]] and [[catalog]] are lists: writing one [[house]] replaces both default
-# houses, [[catalog]] has no default and must be listed, and every key inside an entry is
+# shown here. `catalog` and [[house]] are lists: writing one [[house]] replaces both default
+# houses, `catalog` has no default and must be listed, and every key inside an entry is
 # required.
 
 # Listen address of the HTTP API. The BIND_ADDR environment variable overrides it.
@@ -9,6 +9,17 @@ bind_addr = "127.0.0.1:8080"
 
 # Delay in seconds between two settlements of expired auctions. Must be greater than zero.
 settle_every_secs = 1
+
+# Item types the game knows. base_value is the value of one item, in copper
+# (1 gold = 100 silver = 10 000 copper). item_type must be unique and base_value above zero.
+# The starting players (alice, bob, carol) get random gold and a random choice of these items.
+# Keep this key above [log] and [[house]]: a key written after a table belongs to that table.
+catalog = [
+  { item_type = "linen_cloth", name = "Étoffe de lin", base_value = 13 },
+  { item_type = "copper_ore", name = "Minerai de cuivre", base_value = 5 },
+  { item_type = "healing_potion", name = "Potion de soins", base_value = 250 },
+  { item_type = "iron_sword", name = "Épée en fer", base_value = 4500 },
+]
 
 # Log level per target: trace, debug, info, warn, error or off. `default` sets the level of
 # every target not listed. The RUST_LOG environment variable overrides the whole table.
@@ -50,27 +61,3 @@ durations = [
   { minutes = 10, deposit_multiplier = 2 },
   { minutes = 30, deposit_multiplier = 4 },
 ]
-
-# Item types the game knows. base_value is the value of one item, in copper
-# (1 gold = 100 silver = 10 000 copper). item_type must be unique and base_value above zero.
-# The starting players (alice, bob, carol) get random gold and a random choice of these items.
-
-[[catalog]]
-item_type = "linen_cloth"
-name = "Étoffe de lin"
-base_value = 13
-
-[[catalog]]
-item_type = "copper_ore"
-name = "Minerai de cuivre"
-base_value = 5
-
-[[catalog]]
-item_type = "healing_potion"
-name = "Potion de soins"
-base_value = 250
-
-[[catalog]]
-item_type = "iron_sword"
-name = "Épée en fer"
-base_value = 4500

@@ -25,8 +25,7 @@ pub struct Settings {
     /// Auction houses opened at startup, one `[[house]]` table each.
     #[serde(rename = "house")]
     pub houses: Vec<HouseSettings>,
-    /// Item types the game knows, one `[[catalog]]` table each. No default: the file must list them.
-    #[serde(rename = "catalog")]
+    /// Item types the game knows, one inline table each in the `catalog` array. No default: the file must list them.
     pub catalog: Vec<CatalogSettings>,
 }
 
@@ -172,10 +171,10 @@ impl Settings {
             }
         }
         if self.catalog.is_empty() {
-            return Err("at least one [[catalog]] item is required".into());
+            return Err("at least one `catalog` item is required".into());
         }
         if let Some(item_type) = first_duplicate(self.catalog.iter().map(|c| &c.item_type)) {
-            return Err(format!("duplicate [[catalog]] item_type {item_type:?}"));
+            return Err(format!("duplicate `catalog` item_type {item_type:?}"));
         }
         if let Some(item) = self.catalog.iter().find(|c| c.base_value == 0) {
             return Err(format!(
@@ -236,6 +235,8 @@ mod tests {
     fn houses_and_catalog_are_read() {
         let settings: Settings = toml::from_str(
             r#"
+            catalog = [{ item_type = "stick", name = "Stick", base_value = 2 }]
+
             [[house]]
             name = "Test"
             commission = 100
@@ -243,11 +244,6 @@ mod tests {
             increment = 500
             deposit = 1000
             durations = [{ minutes = 5, deposit_multiplier = 1 }]
-
-            [[catalog]]
-            item_type = "stick"
-            name = "Stick"
-            base_value = 2
             "#,
         )
         .unwrap();
@@ -293,11 +289,11 @@ mod tests {
     #[test]
     fn bad_catalog_is_rejected() {
         let item = |name: &str, value: u64| {
-            format!("[[catalog]]\nitem_type = \"{name}\"\nname = \"x\"\nbase_value = {value}\n")
+            format!("{{ item_type = \"{name}\", name = \"x\", base_value = {value} }}")
         };
         assert!(rejected("catalog = []"));
-        assert!(rejected(&format!("{}{}", item("a", 1), item("a", 2))));
-        assert!(rejected(&item("a", 0)));
+        assert!(rejected(&format!("catalog = [{}, {}]", item("a", 1), item("a", 2))));
+        assert!(rejected(&format!("catalog = [{}]", item("a", 0))));
     }
 
     #[test]
