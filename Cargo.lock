@@ -4,14 +4,14 @@ version = 4
 
 [[package]]
 name = "agora-api"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-domain",
 ]
 
 [[package]]
 name = "agora-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-api",
  "agora-domain",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "agora-domain"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -33,7 +33,7 @@ dependencies = [
 
 [[package]]
 name = "agora-spi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-domain",
  "thiserror 2.0.21",
@@ -258,7 +258,7 @@ dependencies = [
 
 [[package]]
 name = "game-api"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-api",
  "agora-domain",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "game-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-api",
  "agora-core",
@@ -281,7 +281,7 @@ dependencies = [
 
 [[package]]
 name = "game-domain"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-domain",
  "thiserror 2.0.21",
@@ -289,7 +289,7 @@ dependencies = [
 
 [[package]]
 name = "game-dto"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-domain",
  "serde",
@@ -297,7 +297,7 @@ dependencies = [
 
 [[package]]
 name = "game-server"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-core",
  "agora-domain",
@@ -317,7 +317,7 @@ dependencies = [
 
 [[package]]
 name = "game-spi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-api",
  "agora-domain",
@@ -326,7 +326,7 @@ dependencies = [
 
 [[package]]
 name = "game-ui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "agora-domain",
  "game-dto",
