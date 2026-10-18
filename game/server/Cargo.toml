@@ -7,6 +7,7 @@ edition.workspace = true
 agora-domain.workspace = true
 agora-spi.workspace = true
 agora-core = { workspace = true, features = ["memory"] }
+event-sourcing = { workspace = true, features = ["memory"] }
 game-domain.workspace = true
 game-api.workspace = true
 game-core = { workspace = true, features = ["memory"] }

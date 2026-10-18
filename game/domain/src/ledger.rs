@@ -9,27 +9,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use agora_domain::{ItemType, Money, OpId, PlayerRef};
+use event_sourcing::Decider;
 
 use crate::{GameError, Player, TakenReason};
-
-/// An event-sourced aggregate.
-pub trait Decider {
-    /// Identifies the event stream of one aggregate.
-    type Id: Send + Sync;
-    type Command: Send + Sync;
-    type Event: Clone + Send + Sync;
-    type State: Default + Send;
-
-    /// Events to record for `command`. Empty when the command was already applied.
-    fn decide(
-        id: &Self::Id,
-        command: &Self::Command,
-        state: &Self::State,
-    ) -> Result<Vec<Self::Event>, GameError>;
-
-    /// Applies one recorded event. Never fails: events are facts.
-    fn evolve(state: Self::State, event: &Self::Event) -> Self::State;
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlayerCommand {
@@ -183,6 +165,7 @@ impl Decider for PlayerDecider {
     type Command = PlayerCommand;
     type Event = PlayerEvent;
     type State = PlayerState;
+    type Error = GameError;
 
     fn decide(
         id: &PlayerRef,
@@ -288,6 +271,7 @@ impl Decider for TreasuryDecider {
     type Command = TreasuryCommand;
     type Event = TreasuryEvent;
     type State = TreasuryState;
+    type Error = GameError;
 
     fn decide(
         _id: &TreasuryId,

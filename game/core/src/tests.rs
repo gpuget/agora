@@ -9,18 +9,19 @@ use agora_domain::{
     Bps, DurationOption, HouseConfig, HouseId, ItemType, ListingId, Money, OpId, PlayerRef,
     SearchQuery, Timestamp,
 };
+use event_sourcing::memory::InMemoryEventStore;
+use event_sourcing::{EventStore, Projection, Projector, Recorded, StoreError};
 use game_api::{GameApi, LedgerApi, SellCommand};
 use game_domain::{
     CatalogEntry, GameError, Player, PlayerEvent, TakenReason, TreasuryEvent, TreasuryId,
 };
-use game_spi::{EventStore, PlayerView, Projection, Recorded, TreasuryView};
+use game_spi::{PlayerView, TreasuryView};
 use uuid::Uuid;
 
 use crate::memory::{
-    InMemoryEventStore, InMemoryHouseRegistry, InMemoryPlayerProjection,
-    InMemoryTreasuryProjection, StaticCatalog,
+    InMemoryHouseRegistry, InMemoryPlayerProjection, InMemoryTreasuryProjection, StaticCatalog,
 };
-use crate::{CaughtUpView, GameService, LedgerService, Projector};
+use crate::{CaughtUpView, GameService, LedgerService};
 
 type Agora = AuctionService<
     InMemoryAuctionRepository,
@@ -328,7 +329,7 @@ struct ConflictOnce<S> {
 }
 
 impl<S: EventStore<PlayerRef, PlayerEvent>> EventStore<PlayerRef, PlayerEvent> for ConflictOnce<S> {
-    async fn load(&self, stream: &PlayerRef) -> Result<Vec<PlayerEvent>, GameError> {
+    async fn load(&self, stream: &PlayerRef) -> Result<Vec<PlayerEvent>, StoreError> {
         self.inner.load(stream).await
     }
 
@@ -337,9 +338,9 @@ impl<S: EventStore<PlayerRef, PlayerEvent>> EventStore<PlayerRef, PlayerEvent> f
         stream: &PlayerRef,
         expected: u64,
         events: Vec<PlayerEvent>,
-    ) -> Result<u64, GameError> {
+    ) -> Result<u64, StoreError> {
         if !self.conflicted.swap(true, Ordering::SeqCst) {
-            return Err(GameError::Conflict);
+            return Err(StoreError::Conflict);
         }
         self.inner.append(stream, expected, events).await
     }
@@ -348,7 +349,7 @@ impl<S: EventStore<PlayerRef, PlayerEvent>> EventStore<PlayerRef, PlayerEvent> f
         &self,
         after: u64,
         limit: usize,
-    ) -> Result<Vec<Recorded<PlayerRef, PlayerEvent>>, GameError> {
+    ) -> Result<Vec<Recorded<PlayerRef, PlayerEvent>>, StoreError> {
         self.inner.read_all(after, limit).await
     }
 }

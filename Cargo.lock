@@ -186,6 +186,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "event-sourcing"
+version = "0.2.0"
+dependencies = [
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -292,6 +300,7 @@ dependencies = [
  "agora-api",
  "agora-core",
  "agora-domain",
+ "event-sourcing",
  "game-api",
  "game-domain",
  "game-spi",
@@ -305,6 +314,7 @@ name = "game-domain"
 version = "0.2.0"
 dependencies = [
  "agora-domain",
+ "event-sourcing",
  "thiserror 2.0.21",
  "uuid",
 ]
@@ -325,6 +335,7 @@ dependencies = [
  "agora-domain",
  "agora-spi",
  "axum",
+ "event-sourcing",
  "game-api",
  "game-core",
  "game-domain",

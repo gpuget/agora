@@ -1,13 +1,11 @@
 use agora_domain::{ItemType, Money, OpId, PlayerRef};
+use event_sourcing::{EventStore, execute};
 use game_api::LedgerApi;
 use game_domain::{
     GameError, Player, PlayerCommand, PlayerDecider, PlayerEvent, TakenReason, TreasuryCommand,
     TreasuryDecider, TreasuryEvent, TreasuryId,
 };
-use game_spi::EventStore;
 use tracing::{debug, info, warn};
-
-use crate::event_sourcing::execute;
 
 /// Applies the gold and item movements requested by the auction house, as events.
 #[derive(Clone)]

@@ -2,16 +2,17 @@
 
 Auction house inspired by World of Warcraft. The auction core is independent of any game: it defines ports, the game implements them. See [docs/PRD.md](docs/PRD.md).
 
-Rust workspace. Crates of the auction core live in `agora/`, crates of the demo game (server and web ui) in `game/`; the crate `agora-core` is in `agora/core`, `game-server` in `game/server`, and so on.
+Rust workspace. Crates of the auction core live in `agora/`, crates of the demo game (server and web ui) in `game/`, the generic `event-sourcing` crate in `event-sourcing/`; the crate `agora-core` is in `agora/core`, `game-server` in `game/server`, and so on.
 
 - `agora-domain`: domain types and pure rules (`Money`, `Listing`, `HouseConfig`, errors).
 - `agora-api`: inbound ports, the `AuctionApi` use cases.
 - `agora-spi`: outbound ports (`Inventory`, `Wallet`, `MoneySink`, `AuctionRepository`, `Clock`).
 - `agora-core`: `AuctionService`, implements `agora-api` on top of `agora-spi`. Feature `memory`: in-memory adapters.
-- `game-domain`: demo game domain (`Player`, `CatalogEntry`, `GameError`).
+- `event-sourcing`: event sourcing independent of any domain: `Decider`, the `EventStore` and `Projection` ports, `execute` and `Projector`. Feature `memory`: in-memory event store.
+- `game-domain`: demo game domain (`Player`, `CatalogEntry`, `GameError`) and the ledger deciders.
 - `game-api`: inbound ports of the game: `GameApi` (player use cases) and `LedgerApi` (gold and item movements requested by Agora).
-- `game-spi`: outbound ports of the game (`EventStore`, `Projection`, `PlayerView`, `TreasuryView`, `Catalog`, `HouseRegistry`) plus Agora's `AuctionApi`.
-- `game-core`: `GameService` and `LedgerService` (event-sourced ledger), `Projector` and `CaughtUpView`. Feature `memory`: in-memory adapters.
+- `game-spi`: outbound ports of the game (`PlayerView`, `TreasuryView`, `Catalog`, `HouseRegistry`) plus Agora's `AuctionApi`.
+- `game-core`: `GameService` and `LedgerService` (event-sourced ledger), `CaughtUpView`. Feature `memory`: in-memory adapters.
 - `game-server`: demo game server. Adapters (HTTP on port 8080, bridge implementing Agora's outbound ports with `LedgerApi`, system clock) and wiring.
 - `game-dto`: HTTP requests and responses shared by `game-server` and `game-ui`.
 - `game-ui`: web app (Yew, built with Trunk), served on port 3000.

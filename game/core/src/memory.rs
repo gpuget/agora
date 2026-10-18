@@ -4,68 +4,9 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use agora_domain::{AuctionHouse, ItemType, Money, PlayerRef};
+use event_sourcing::{Projection, Recorded, StoreError};
 use game_domain::{CatalogEntry, GameError, Player, PlayerEvent, TreasuryEvent, TreasuryId};
-use game_spi::{
-    Catalog, EventStore, HouseRegistry, PlayerView, Projection, Recorded, TreasuryView,
-};
-
-struct Log<I, E> {
-    streams: BTreeMap<I, Vec<E>>,
-    /// The global log: the event at index `i` has position `i + 1`.
-    all: Vec<Recorded<I, E>>,
-}
-
-pub struct InMemoryEventStore<I, E>(Arc<Mutex<Log<I, E>>>);
-
-impl<I, E> Default for InMemoryEventStore<I, E> {
-    fn default() -> Self {
-        Self(Arc::new(Mutex::new(Log {
-            streams: BTreeMap::new(),
-            all: Vec::new(),
-        })))
-    }
-}
-
-impl<I, E> Clone for InMemoryEventStore<I, E> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
-
-impl<I, E> EventStore<I, E> for InMemoryEventStore<I, E>
-where
-    I: Ord + Clone + Send + Sync,
-    E: Clone + Send + Sync,
-{
-    async fn load(&self, stream: &I) -> Result<Vec<E>, GameError> {
-        let log = self.0.lock().unwrap();
-        Ok(log.streams.get(stream).cloned().unwrap_or_default())
-    }
-
-    async fn append(&self, stream: &I, expected: u64, events: Vec<E>) -> Result<u64, GameError> {
-        let mut log = self.0.lock().unwrap();
-        let Log { streams, all } = &mut *log;
-        let recorded = streams.entry(stream.clone()).or_default();
-        if recorded.len() as u64 != expected {
-            return Err(GameError::Conflict);
-        }
-        for event in events {
-            all.push(Recorded {
-                position: all.len() as u64 + 1,
-                stream: stream.clone(),
-                event: event.clone(),
-            });
-            recorded.push(event);
-        }
-        Ok(recorded.len() as u64)
-    }
-
-    async fn read_all(&self, after: u64, limit: usize) -> Result<Vec<Recorded<I, E>>, GameError> {
-        let log = self.0.lock().unwrap();
-        let start = usize::try_from(after).unwrap_or(usize::MAX);
-        Ok(log.all.iter().skip(start).take(limit).cloned().collect())
-    }
-}
+use game_spi::{Catalog, HouseRegistry, PlayerView, TreasuryView};
 
 #[derive(Default)]
 struct PlayersState {
@@ -84,11 +25,11 @@ impl InMemoryPlayerProjection {
 }
 
 impl Projection<PlayerRef, PlayerEvent> for InMemoryPlayerProjection {
-    async fn checkpoint(&self) -> Result<u64, GameError> {
+    async fn checkpoint(&self) -> Result<u64, StoreError> {
         Ok(self.0.lock().unwrap().checkpoint)
     }
 
-    async fn apply(&self, events: &[Recorded<PlayerRef, PlayerEvent>]) -> Result<(), GameError> {
+    async fn apply(&self, events: &[Recorded<PlayerRef, PlayerEvent>]) -> Result<(), StoreError> {
         let mut state = self.0.lock().unwrap();
         for recorded in events {
             if recorded.position <= state.checkpoint {
@@ -121,11 +62,14 @@ struct TreasuryTotal {
 pub struct InMemoryTreasuryProjection(Arc<Mutex<TreasuryTotal>>);
 
 impl Projection<TreasuryId, TreasuryEvent> for InMemoryTreasuryProjection {
-    async fn checkpoint(&self) -> Result<u64, GameError> {
+    async fn checkpoint(&self) -> Result<u64, StoreError> {
         Ok(self.0.lock().unwrap().checkpoint)
     }
 
-    async fn apply(&self, events: &[Recorded<TreasuryId, TreasuryEvent>]) -> Result<(), GameError> {
+    async fn apply(
+        &self,
+        events: &[Recorded<TreasuryId, TreasuryEvent>],
+    ) -> Result<(), StoreError> {
         let mut state = self.0.lock().unwrap();
         for recorded in events {
             if recorded.position <= state.checkpoint {

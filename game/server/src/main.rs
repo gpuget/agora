@@ -10,10 +10,10 @@ use std::sync::Arc;
 use agora_core::AuctionService;
 use agora_core::memory::InMemoryAuctionRepository;
 use agora_domain::{Money, PlayerRef};
+use event_sourcing::memory::InMemoryEventStore;
 use game_api::{GameApi, LedgerApi};
 use game_core::memory::{
-    InMemoryEventStore, InMemoryHouseRegistry, InMemoryPlayerProjection,
-    InMemoryTreasuryProjection, StaticCatalog,
+    InMemoryHouseRegistry, InMemoryPlayerProjection, InMemoryTreasuryProjection, StaticCatalog,
 };
 use game_core::{CaughtUpView, GameService, LedgerService};
 use game_domain::{Player, PlayerEvent, TreasuryEvent, TreasuryId};

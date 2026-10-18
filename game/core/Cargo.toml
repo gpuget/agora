@@ -10,6 +10,7 @@ memory = []
 [dependencies]
 agora-api.workspace = true
 agora-domain.workspace = true
+event-sourcing.workspace = true
 game-api.workspace = true
 game-domain.workspace = true
 game-spi.workspace = true
@@ -17,5 +18,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 agora-core = { workspace = true, features = ["memory"] }
+event-sourcing = { workspace = true, features = ["memory"] }
 tokio = { workspace = true, features = ["macros", "rt"] }
 uuid.workspace = true

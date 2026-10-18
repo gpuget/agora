@@ -1,0 +1,14 @@
+[package]
+name = "event-sourcing"
+version.workspace = true
+edition.workspace = true
+
+[features]
+# In-memory event store.
+memory = []
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

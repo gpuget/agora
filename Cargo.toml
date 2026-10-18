@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["agora/*", "game/*"]
+members = ["agora/*", "event-sourcing", "game/*"]
 
 [workspace.package]
 version = "0.2.0"
@@ -11,6 +11,7 @@ agora-domain = { path = "agora/domain" }
 agora-api = { path = "agora/api" }
 agora-spi = { path = "agora/spi" }
 agora-core = { path = "agora/core" }
+event-sourcing = { path = "event-sourcing" }
 game-domain = { path = "game/domain" }
 game-api = { path = "game/api" }
 game-spi = { path = "game/spi" }

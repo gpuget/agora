@@ -5,13 +5,14 @@
 use std::collections::BTreeMap;
 
 use agora_domain::{AuctionError, ItemType, ListingId, Money, PlayerRef};
+use event_sourcing::StoreError;
 use thiserror::Error;
 
 mod ledger;
 
 pub use ledger::{
-    Decider, PlayerCommand, PlayerDecider, PlayerEvent, PlayerState, TreasuryCommand,
-    TreasuryDecider, TreasuryEvent, TreasuryId, TreasuryState,
+    PlayerCommand, PlayerDecider, PlayerEvent, PlayerState, TreasuryCommand, TreasuryDecider,
+    TreasuryEvent, TreasuryId, TreasuryState,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,6 +106,15 @@ pub enum GameError {
     Conflict,
     #[error("storage error: {0}")]
     Storage(String),
+}
+
+impl From<StoreError> for GameError {
+    fn from(error: StoreError) -> Self {
+        match error {
+            StoreError::Conflict => GameError::Conflict,
+            StoreError::Storage(message) => GameError::Storage(message),
+        }
+    }
 }
 
 #[cfg(test)]

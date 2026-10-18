@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 agora-domain.workspace = true
+event-sourcing.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
