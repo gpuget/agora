@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["agora/*", "event-sourcing", "game/*"]
+members = ["agora/*", "event-sourcing", "game/*", "tcg/*"]
 
 [workspace.package]
 version = "0.2.0"
@@ -17,6 +17,11 @@ game-api = { path = "game/api" }
 game-spi = { path = "game/spi" }
 game-core = { path = "game/core" }
 game-dto = { path = "game/dto" }
+tcg-domain = { path = "tcg/domain" }
+tcg-api = { path = "tcg/api" }
+tcg-spi = { path = "tcg/spi" }
+tcg-core = { path = "tcg/core" }
+tcg-dto = { path = "tcg/dto" }
 
 axum = "0.8.9"
 serde = { version = "1.0.229", features = ["derive"] }

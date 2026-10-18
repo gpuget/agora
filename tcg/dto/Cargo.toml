@@ -1,0 +1,8 @@
+[package]
+name = "tcg-dto"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agora-domain.workspace = true
+serde.workspace = true

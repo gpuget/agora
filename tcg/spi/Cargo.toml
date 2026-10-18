@@ -1,0 +1,9 @@
+[package]
+name = "tcg-spi"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agora-api.workspace = true
+agora-domain.workspace = true
+tcg-domain.workspace = true

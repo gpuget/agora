@@ -1,0 +1,24 @@
+[package]
+name = "tcg-server"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agora-domain.workspace = true
+agora-spi.workspace = true
+agora-core = { workspace = true, features = ["memory"] }
+event-sourcing = { workspace = true, features = ["memory"] }
+tcg-domain.workspace = true
+tcg-api.workspace = true
+tcg-core = { workspace = true, features = ["memory"] }
+tcg-spi.workspace = true
+tcg-dto.workspace = true
+axum.workspace = true
+serde.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tower-http = { version = "0.7.1", features = ["trace"] }
+tracing.workspace = true
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+uuid.workspace = true
+toml = "1.1.8"
+rand = "0.10.3"

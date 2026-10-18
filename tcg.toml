@@ -1,0 +1,57 @@
+# Settings of tcg-server, read from the working directory. Set TCG_CONFIG to read another
+# file. Every top-level key and the [log] table are optional: a missing one takes the value
+# shown here. `catalog` and [[house]] are lists: writing one [[house]] replaces the default
+# house, `catalog` has no default and must be listed, and every key inside an entry is
+# required.
+
+# Listen address of the HTTP API. The BIND_ADDR environment variable overrides it.
+bind_addr = "127.0.0.1:8081"
+
+# Delay in seconds between two settlements of expired auctions. Must be greater than zero.
+settle_every_secs = 1
+
+# Value of one card in dust, per rarity: the base value of the deposit. Every rarity is
+# required and above zero.
+rarity = { common = 40, rare = 100, epic = 400, legendary = 1600 }
+
+# Cards the game knows. card_id must be unique, rarity is common, rare, epic or legendary.
+# The starting collectors (alice, bob, carol) get random dust and a random choice of these
+# cards, 1 to 3 copies each. A listing always holds a single copy.
+# Keep this key above [log] and [[house]]: a key written after a table belongs to that table.
+catalog = [
+  { card_id = "goblin_scout", name = "Éclaireur gobelin", rarity = "common" },
+  { card_id = "village_healer", name = "Guérisseuse du village", rarity = "common" },
+  { card_id = "frost_mage", name = "Mage de givre", rarity = "rare" },
+  { card_id = "iron_golem", name = "Golem de fer", rarity = "rare" },
+  { card_id = "shadow_pact", name = "Pacte d'ombre", rarity = "epic" },
+  { card_id = "fire_drake", name = "Drake de feu", rarity = "legendary" },
+]
+
+# Log level per target: trace, debug, info, warn, error or off. `default` sets the level of
+# every target not listed. The RUST_LOG environment variable overrides the whole table.
+# debug on tcg_core shows every ledger call Agora makes, with its OpId.
+# debug on tower_http shows every HTTP response (the ui polls every second).
+[log]
+tcg_server = "debug"
+tcg_core = "debug"
+tower_http = "info"
+
+# Auction houses opened at startup. At least one is required. Rates are in basis points
+# (100 = 1%). Amounts are in dust.
+# commission: taken from the final price of a sale.
+# min_increment, increment: absolute and relative parts of the minimum bid increment.
+# deposit: rate applied to the base value of the card, times the duration multiplier.
+# durations: allowed listing durations in minutes, each once, with a multiplier above zero.
+# House names must be unique.
+
+[[house]]
+name = "Marché"
+commission = 500
+min_increment = 1
+increment = 500
+deposit = 1500
+durations = [
+  { minutes = 2, deposit_multiplier = 1 },
+  { minutes = 10, deposit_multiplier = 2 },
+  { minutes = 30, deposit_multiplier = 4 },
+]

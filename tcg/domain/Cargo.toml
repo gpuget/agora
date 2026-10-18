@@ -1,0 +1,12 @@
+[package]
+name = "tcg-domain"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+agora-domain.workspace = true
+event-sourcing.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true

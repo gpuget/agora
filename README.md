@@ -1,8 +1,8 @@
 # Agora
 
-Auction house inspired by World of Warcraft. The auction core is independent of any game: it defines ports, the game implements them. See [docs/PRD.md](docs/PRD.md).
+Auction house inspired by World of Warcraft. The auction core is independent of any game: it defines ports, the games implement them. Two demo games trade on it: `game` (gold and stacks of items) and `tcg` (a trading card game: dust and cards, one card per listing). See [docs/PRD.md](docs/PRD.md).
 
-Rust workspace. Crates of the auction core live in `agora/`, crates of the demo game (server and web ui) in `game/`, the generic `event-sourcing` crate in `event-sourcing/`; the crate `agora-core` is in `agora/core`, `game-server` in `game/server`, and so on.
+Rust workspace. Crates of the auction core live in `agora/`, crates of the demo games (server and web ui) in `game/` and `tcg/`, the generic `event-sourcing` crate in `event-sourcing/`; the crate `agora-core` is in `agora/core`, `game-server` in `game/server`, and so on.
 
 - `agora-domain`: domain types and pure rules (`Money`, `Listing`, `HouseConfig`, errors).
 - `agora-api`: inbound ports, the `AuctionApi` use cases.
@@ -16,6 +16,7 @@ Rust workspace. Crates of the auction core live in `agora/`, crates of the demo 
 - `game-server`: demo game server. Adapters (HTTP on port 8080, bridge implementing Agora's outbound ports with `LedgerApi`, system clock) and wiring.
 - `game-dto`: HTTP requests and responses shared by `game-server` and `game-ui`.
 - `game-ui`: web app (Yew, built with Trunk), served on port 3000.
+- `tcg-*`: the trading card game, same crates as `game-*` (`tcg-domain`, `tcg-api`, `tcg-spi`, `tcg-core`, `tcg-server`, `tcg-dto`, `tcg-ui`). A collector holds dust (the money, one unit per dust) and copies of cards, which are interchangeable. A listing always holds a single card: `SellCommand` has no quantity, so prices are per card. The base value of a card, used for the deposit, comes from its rarity.
 
 ## Setup
 
@@ -29,7 +30,7 @@ Prerequisites:
 ## Tests
 
 ```
-cargo test -p agora-domain -p agora-core -p event-sourcing -p game-domain -p game-core
+cargo test -p agora-domain -p agora-core -p event-sourcing -p game-domain -p game-core -p tcg-domain -p tcg-core
 ```
 
 ## Run locally
@@ -54,6 +55,23 @@ trunk serve
 ```
 
 The app is at <http://127.0.0.1:3000> and refreshes every second. Requests to `/api/` are proxied to the game server (see `game/ui/Trunk.toml`). Pick a player in the header: there is no authentication.
+
+## Run the trading card game
+
+Same steps as the game, on other ports so both can run at once:
+
+```
+cargo run -p tcg-server
+```
+
+The API is under <http://127.0.0.1:8081/api/>. Settings are read from `tcg.toml` (set `TCG_CONFIG` to read another file): the same keys as `game.toml`, plus `rarity` (value of one card in dust per rarity), and a `catalog` of cards (`card_id`, `name`, `rarity`).
+
+```
+cd tcg/ui
+trunk serve
+```
+
+The app is at <http://127.0.0.1:3001>.
 
 ## Production build of the UI
 
