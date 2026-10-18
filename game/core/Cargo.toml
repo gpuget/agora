@@ -18,3 +18,4 @@ tracing.workspace = true
 [dev-dependencies]
 agora-core = { workspace = true, features = ["memory"] }
 tokio = { workspace = true, features = ["macros", "rt"] }
+uuid.workspace = true

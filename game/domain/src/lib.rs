@@ -7,6 +7,13 @@ use std::collections::BTreeMap;
 use agora_domain::{AuctionError, ItemType, ListingId, Money, PlayerRef};
 use thiserror::Error;
 
+mod ledger;
+
+pub use ledger::{
+    Decider, PlayerCommand, PlayerDecider, PlayerEvent, PlayerState, TreasuryCommand,
+    TreasuryDecider, TreasuryEvent, TreasuryId, TreasuryState,
+};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogEntry {
     pub item_type: ItemType,
@@ -43,35 +50,29 @@ impl Player {
         self.items.get(item_type).copied().unwrap_or(0)
     }
 
-    pub fn withdraw(&mut self, item_type: &ItemType, quantity: u32) -> Result<(), GameError> {
-        let held = self
-            .items
-            .get_mut(item_type)
-            .filter(|held| **held >= quantity)
-            .ok_or(GameError::ItemUnavailable)?;
-        *held -= quantity;
-        if *held == 0 {
-            self.items.remove(item_type);
+    pub fn check_withdraw(&self, item_type: &ItemType, quantity: u32) -> Result<(), GameError> {
+        if self.quantity(item_type) < quantity {
+            return Err(GameError::ItemUnavailable);
         }
         Ok(())
     }
 
-    pub fn deposit(&mut self, item_type: &ItemType, quantity: u32) -> Result<(), GameError> {
-        let held = self.items.entry(item_type.clone()).or_default();
-        *held = held.checked_add(quantity).ok_or(GameError::Overflow)?;
+    pub fn check_deposit(&self, item_type: &ItemType, quantity: u32) -> Result<(), GameError> {
+        self.quantity(item_type)
+            .checked_add(quantity)
+            .ok_or(GameError::Overflow)?;
         Ok(())
     }
 
-    pub fn debit(&mut self, amount: Money) -> Result<(), GameError> {
-        self.gold = self
-            .gold
+    pub fn check_debit(&self, amount: Money) -> Result<(), GameError> {
+        self.gold
             .checked_sub(amount)
             .ok_or(GameError::InsufficientFunds)?;
         Ok(())
     }
 
-    pub fn credit(&mut self, amount: Money) -> Result<(), GameError> {
-        self.gold = self.gold.checked_add(amount).ok_or(GameError::Overflow)?;
+    pub fn check_credit(&self, amount: Money) -> Result<(), GameError> {
+        self.gold.checked_add(amount).ok_or(GameError::Overflow)?;
         Ok(())
     }
 }
@@ -87,6 +88,8 @@ pub enum TakenReason {
 pub enum GameError {
     #[error("unknown player {0}")]
     UnknownPlayer(PlayerRef),
+    #[error("player {0} already exists")]
+    PlayerExists(PlayerRef),
     #[error("unknown item type {0}")]
     UnknownItemType(ItemType),
     #[error("item unavailable")]
@@ -97,6 +100,9 @@ pub enum GameError {
     Overflow,
     #[error(transparent)]
     Auction(#[from] AuctionError),
+    /// The event stream changed since it was loaded.
+    #[error("concurrent change, retry")]
+    Conflict,
     #[error("storage error: {0}")]
     Storage(String),
 }
@@ -114,33 +120,39 @@ mod tests {
     }
 
     #[test]
-    fn withdraw_removes_empty_stacks() {
-        let mut player = alice();
-        player.withdraw(&cloth(), 5).unwrap();
-        assert!(player.items.is_empty());
-    }
-
-    #[test]
-    fn withdraw_more_than_held_fails_without_change() {
-        let mut player = alice();
+    fn withdraw_needs_the_items() {
+        let player = alice();
+        assert_eq!(player.check_withdraw(&cloth(), 5), Ok(()));
         assert_eq!(
-            player.withdraw(&cloth(), 6),
+            player.check_withdraw(&cloth(), 6),
             Err(GameError::ItemUnavailable)
         );
-        assert_eq!(player.quantity(&cloth()), 5);
+        assert_eq!(
+            player.check_withdraw(&"iron_sword".into(), 1),
+            Err(GameError::ItemUnavailable)
+        );
     }
 
     #[test]
-    fn debit_more_than_gold_fails_without_change() {
-        let mut player = alice();
-        assert_eq!(player.debit(Money(101)), Err(GameError::InsufficientFunds));
-        assert_eq!(player.gold, Money(100));
+    fn debit_needs_the_gold() {
+        let player = alice();
+        assert_eq!(player.check_debit(Money(100)), Ok(()));
+        assert_eq!(
+            player.check_debit(Money(101)),
+            Err(GameError::InsufficientFunds)
+        );
     }
 
     #[test]
     fn credit_and_deposit_detect_overflow() {
-        let mut player = alice();
-        assert_eq!(player.credit(Money(u64::MAX)), Err(GameError::Overflow));
-        assert_eq!(player.deposit(&cloth(), u32::MAX), Err(GameError::Overflow));
+        let player = alice();
+        assert_eq!(
+            player.check_credit(Money(u64::MAX)),
+            Err(GameError::Overflow)
+        );
+        assert_eq!(
+            player.check_deposit(&cloth(), u32::MAX),
+            Err(GameError::Overflow)
+        );
     }
 }

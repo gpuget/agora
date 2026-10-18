@@ -56,7 +56,9 @@ impl From<GameError> for ApiError {
             | GameError::Auction(AuctionError::HouseNotFound | AuctionError::ListingNotFound) => {
                 StatusCode::NOT_FOUND
             }
-            GameError::Auction(AuctionError::Conflict) => StatusCode::CONFLICT,
+            GameError::Conflict | GameError::Auction(AuctionError::Conflict) => {
+                StatusCode::CONFLICT
+            }
             GameError::Storage(_)
             | GameError::Auction(
                 AuctionError::Repository(_) | AuctionError::Port(PortError::Other(_)),

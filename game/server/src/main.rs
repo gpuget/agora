@@ -7,30 +7,28 @@ use std::time::Duration;
 
 use agora_core::AuctionService;
 use agora_core::memory::InMemoryAuctionRepository;
-use agora_domain::{Bps, DurationOption, HouseConfig, Money};
-use game_api::GameApi;
+use agora_domain::{Bps, DurationOption, HouseConfig, Money, PlayerRef};
+use game_api::{GameApi, LedgerApi};
 use game_core::memory::{
-    InMemoryHouseRegistry, InMemoryPlayerRepository, InMemoryTreasury, StaticCatalog,
+    InMemoryEventStore, InMemoryHouseRegistry, InMemoryPlayerProjection,
+    InMemoryTreasuryProjection, StaticCatalog,
 };
-use game_core::{GameService, LedgerService};
-use game_domain::{CatalogEntry, Player};
-use game_spi::PlayerRepository;
+use game_core::{CaughtUpView, GameService, LedgerService};
+use game_domain::{CatalogEntry, Player, PlayerEvent, TreasuryEvent, TreasuryId};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 use crate::adapters::agora_bridge::AgoraBridge;
 use crate::adapters::clock::SystemClock;
 
-type Ledger = LedgerService<InMemoryPlayerRepository, InMemoryTreasury>;
+type PlayerEvents = InMemoryEventStore<PlayerRef, PlayerEvent>;
+type TreasuryEvents = InMemoryEventStore<TreasuryId, TreasuryEvent>;
+type Ledger = LedgerService<PlayerEvents, TreasuryEvents>;
 type Bridge = AgoraBridge<Ledger>;
 type Agora = AuctionService<InMemoryAuctionRepository, Bridge, Bridge, Bridge, SystemClock>;
-pub type Game = GameService<
-    InMemoryPlayerRepository,
-    StaticCatalog,
-    InMemoryHouseRegistry,
-    InMemoryTreasury,
-    Agora,
->;
+type Players = CaughtUpView<PlayerEvents, InMemoryPlayerProjection, PlayerRef, PlayerEvent>;
+type Treasury = CaughtUpView<TreasuryEvents, InMemoryTreasuryProjection, TreasuryId, TreasuryEvent>;
+pub type Game = GameService<Players, StaticCatalog, InMemoryHouseRegistry, Treasury, Agora>;
 
 /// 1 gold = 100 silver = 10 000 copper. Amounts are in copper.
 const GOLD: u64 = 10_000;
@@ -103,14 +101,19 @@ async fn main() {
         )
         .init();
 
-    let players = InMemoryPlayerRepository::default();
+    let player_events = PlayerEvents::default();
+    let treasury_events = TreasuryEvents::default();
+    let ledger = LedgerService::new(player_events.clone(), treasury_events.clone());
     for player in starting_players() {
-        players.insert(player).await.expect("in-memory insert");
+        ledger.open_player(player).await.expect("new player");
     }
-    let treasury = InMemoryTreasury::default();
+
+    // Read models of the ledger, caught up with its events on every read.
+    let players = CaughtUpView::new(player_events, InMemoryPlayerProjection::default());
+    let treasury = CaughtUpView::new(treasury_events, InMemoryTreasuryProjection::default());
 
     // Agora drives the game ledger through its outbound ports.
-    let bridge = AgoraBridge(LedgerService::new(players.clone(), treasury.clone()));
+    let bridge = AgoraBridge(ledger);
     let agora = AuctionService::new(
         InMemoryAuctionRepository::default(),
         bridge.clone(),

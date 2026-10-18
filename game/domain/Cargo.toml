@@ -6,3 +6,6 @@ edition.workspace = true
 [dependencies]
 agora-domain.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true

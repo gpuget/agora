@@ -30,11 +30,13 @@ pub trait GameApi: Send + Sync {
 
     fn auction_houses(&self) -> impl Future<Output = Result<Vec<AuctionHouse>, GameError>> + Send;
 
+    /// Read from a projection of the ledger: may lag behind the last ledger calls.
     fn players(&self) -> impl Future<Output = Result<Vec<Player>, GameError>> + Send;
 
     fn catalog(&self) -> impl Future<Output = Result<Vec<CatalogEntry>, GameError>> + Send;
 
-    /// Total money taken out of the game by the auction houses.
+    /// Total money taken out of the game by the auction houses. Read from a projection of
+    /// the ledger: may lag behind the last ledger calls.
     fn money_taken(&self) -> impl Future<Output = Result<Money, GameError>> + Send;
 
     fn search_market(
@@ -69,7 +71,14 @@ pub trait GameApi: Send + Sync {
 }
 
 /// Gold and items of the players, driven by the auction house through an adapter.
+///
+/// Every movement carries the [`OpId`] of the Agora call: a call replayed with the same
+/// `OpId` succeeds without effect.
 pub trait LedgerApi: Send + Sync {
+    /// Opens the account of a new player with their starting gold and items. Fails with
+    /// [`GameError::PlayerExists`] if the player already has one.
+    fn open_player(&self, player: Player) -> impl Future<Output = Result<(), GameError>> + Send;
+
     fn withdraw_item(
         &self,
         op: OpId,

@@ -277,6 +277,7 @@ dependencies = [
  "game-spi",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -285,6 +286,7 @@ version = "0.2.0"
 dependencies = [
  "agora-domain",
  "thiserror 2.0.21",
+ "uuid",
 ]
 
 [[package]]

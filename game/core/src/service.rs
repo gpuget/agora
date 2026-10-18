@@ -4,7 +4,7 @@ use agora_domain::{
 };
 use game_api::{GameApi, SellCommand};
 use game_domain::{CatalogEntry, GameError, Player};
-use game_spi::{Catalog, HouseRegistry, PlayerRepository, Treasury};
+use game_spi::{Catalog, HouseRegistry, PlayerView, TreasuryView};
 use tracing::info;
 
 pub struct GameService<P, C, H, T, A> {
@@ -17,10 +17,10 @@ pub struct GameService<P, C, H, T, A> {
 
 impl<P, C, H, T, A> GameService<P, C, H, T, A>
 where
-    P: PlayerRepository,
+    P: PlayerView,
     C: Catalog,
     H: HouseRegistry,
-    T: Treasury,
+    T: TreasuryView,
     A: AuctionApi,
 {
     pub fn new(players: P, catalog: C, houses: H, treasury: T, auction: A) -> Self {
@@ -36,10 +36,10 @@ where
 
 impl<P, C, H, T, A> GameApi for GameService<P, C, H, T, A>
 where
-    P: PlayerRepository,
+    P: PlayerView,
     C: Catalog,
     H: HouseRegistry,
-    T: Treasury,
+    T: TreasuryView,
     A: AuctionApi,
 {
     async fn open_auction_house(&self, config: HouseConfig) -> Result<AuctionHouse, GameError> {
