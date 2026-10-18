@@ -4,14 +4,14 @@ version = 4
 
 [[package]]
 name = "agora-api"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-domain",
 ]
 
 [[package]]
 name = "agora-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-api",
  "agora-domain",
@@ -23,7 +23,7 @@ dependencies = [
 
 [[package]]
 name = "agora-domain"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -33,7 +33,7 @@ dependencies = [
 
 [[package]]
 name = "agora-spi"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-domain",
  "thiserror 2.0.21",
@@ -187,7 +187,7 @@ dependencies = [
 
 [[package]]
 name = "event-sourcing"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "thiserror 2.0.21",
  "tokio",
@@ -286,7 +286,7 @@ dependencies = [
 
 [[package]]
 name = "game-api"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-api",
  "agora-domain",
@@ -295,7 +295,7 @@ dependencies = [
 
 [[package]]
 name = "game-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-api",
  "agora-core",
@@ -311,7 +311,7 @@ dependencies = [
 
 [[package]]
 name = "game-domain"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-domain",
  "event-sourcing",
@@ -321,7 +321,7 @@ dependencies = [
 
 [[package]]
 name = "game-dto"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-domain",
  "serde",
@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "game-server"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-core",
  "agora-domain",
@@ -353,7 +353,7 @@ dependencies = [
 
 [[package]]
 name = "game-spi"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-api",
  "agora-domain",
@@ -362,7 +362,7 @@ dependencies = [
 
 [[package]]
 name = "game-ui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-domain",
  "game-dto",
@@ -1221,7 +1221,7 @@ checksum = "0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263"
 
 [[package]]
 name = "tcg-api"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-api",
  "agora-domain",
@@ -1230,7 +1230,7 @@ dependencies = [
 
 [[package]]
 name = "tcg-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-api",
  "agora-core",
@@ -1246,7 +1246,7 @@ dependencies = [
 
 [[package]]
 name = "tcg-domain"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-domain",
  "event-sourcing",
@@ -1256,7 +1256,7 @@ dependencies = [
 
 [[package]]
 name = "tcg-dto"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-domain",
  "serde",
@@ -1264,7 +1264,7 @@ dependencies = [
 
 [[package]]
 name = "tcg-server"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-core",
  "agora-domain",
@@ -1288,7 +1288,7 @@ dependencies = [
 
 [[package]]
 name = "tcg-spi"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-api",
  "agora-domain",
@@ -1297,7 +1297,7 @@ dependencies = [
 
 [[package]]
 name = "tcg-ui"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "agora-domain",
  "gloo-net 0.7.0",
