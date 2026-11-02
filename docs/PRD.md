@@ -4,7 +4,7 @@ Statut : prototype. Date : 2026-10-14.
 
 ## 1. Objectif
 
-Agora est un hôtel des ventes inspiré de celui de World of Warcraft. Le core d'enchères est indépendant de tout jeu : il définit des ports, et le jeu fournit les implémentations (clean architecture / hexagonal).
+Agora est un hôtel des ventes. Le core d'enchères est indépendant de tout jeu : il définit des ports, et le jeu fournit les implémentations (clean architecture / hexagonal).
 
 Le jeu est un client de confiance. Les joueurs n'appellent jamais Agora directement : ils passent par le serveur de jeu.
 

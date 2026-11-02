@@ -1,6 +1,6 @@
 # Agora
 
-Auction house inspired by World of Warcraft. The auction core is independent of any game: it defines ports, the games implement them. Two demo games trade on it: `game` (gold and stacks of items) and `tcg` (a trading card game: dust and cards, one card per listing). See [docs/PRD.md](docs/PRD.md).
+Auction house. The auction core is independent of any game: it defines ports, the games implement them. Two demo games trade on it: `game` (gold and stacks of items) and `tcg` (a trading card game: dust and cards, one card per listing). See [docs/PRD.md](docs/PRD.md).
 
 Rust workspace. Crates of the auction core live in `agora/`, crates of the demo games (server and web ui) in `game/` and `tcg/`, the generic `event-sourcing` crate in `event-sourcing/`; the crate `agora-core` is in `agora/core`, `game-server` in `game/server`, and so on.
 
