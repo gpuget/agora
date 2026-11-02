@@ -8,6 +8,7 @@ pub struct CatalogEntry {
     pub item_type: ItemType,
     pub name: String,
     pub base_value: Money,
+    pub commodity: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -92,10 +93,17 @@ pub struct BidResponse {
     pub result: BidResult,
 }
 
-/// Body of buyout and cancel requests.
+/// Body of cancel requests.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayerRequest {
     pub player: PlayerRef,
+}
+
+/// Body of buyout requests. `quantity` is the number of items bought.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BuyoutRequest {
+    pub player: PlayerRef,
+    pub quantity: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

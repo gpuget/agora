@@ -9,7 +9,7 @@ use crate::api::{Action, get, perform};
 use crate::components::{
     CharacterPanel, Filter, FilterBar, Header, ListingsTable, MessageBanner, SellForm, SellItem,
 };
-use crate::format::{base_value, item_name};
+use crate::format::{base_value, is_commodity, item_name};
 
 const REFRESH_MS: u32 = 1_000;
 
@@ -183,6 +183,7 @@ pub fn App() -> Html {
                                     name: item_name(&catalog, &i.item_type),
                                     held: i.quantity,
                                     base_value: base_value(&catalog, &i.item_type),
+                                    commodity: is_commodity(&catalog, &i.item_type),
                                 }).collect::<Vec<_>>()}
                                 on_action={on_action.clone()}
                             />

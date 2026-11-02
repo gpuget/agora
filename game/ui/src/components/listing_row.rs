@@ -48,9 +48,26 @@ pub fn ListingRow(props: &ListingRowProps) -> Html {
             total_mode.set(total);
         })
     };
+    let commodity = listing.item.commodity;
+    let wanted = use_state(|| listing.item.quantity.to_string());
+    let on_wanted_input = {
+        let wanted = wanted.clone();
+        Callback::from(move |e: InputEvent| wanted.set(input_value(&e)))
+    };
     let on_buyout = {
-        let on_action = props.on_action.clone();
-        Callback::from(move |_| on_action.emit(Action::Buyout(id)))
+        let (wanted, on_action) = (wanted.clone(), props.on_action.clone());
+        let available = listing.item.quantity;
+        Callback::from(move |_| {
+            // Only a commodity can be bought in part, anything else is bought whole.
+            let quantity = if commodity {
+                wanted.parse().ok()
+            } else {
+                Some(available)
+            };
+            if let Some(quantity) = quantity {
+                on_action.emit(Action::Buyout(id, quantity));
+            }
+        })
     };
     let on_cancel = {
         let on_action = props.on_action.clone();
@@ -85,7 +102,10 @@ pub fn ListingRow(props: &ListingRowProps) -> Html {
                         <button onclick={on_cancel}>{ "Annuler" }</button>
                     }
                 } else {
-                    if !leading {
+                    if commodity {
+                        <input type="number" min="1" max={listing.item.quantity.to_string()} value={(*wanted).clone()} oninput={on_wanted_input} title="Quantité à acheter" />
+                    }
+                    if !leading && !commodity {
                         <select onchange={on_bid_mode} title="Saisie du prix">
                             <option value="unit" selected={!*total_mode}>{ "/ u" }</option>
                             <option value="total" selected={*total_mode}>{ "lot" }</option>

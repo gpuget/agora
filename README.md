@@ -1,6 +1,6 @@
 # Agora
 
-Auction house. The auction core is independent of any game: it defines ports, the games implement them. Two demo games trade on it: `game` (gold and stacks of items) and `tcg` (a trading card game: dust and cards, one card per listing). See [docs/PRD.md](docs/PRD.md).
+Auction house. The auction core is independent of any game: it defines ports, the games implement them. Two demo games trade on it: `game` (gold and stacks of items, commodities bought in part) and `tcg` (a trading card game: dust and cards, one card per listing). See [docs/PRD.md](docs/PRD.md).
 
 Rust workspace. Crates of the auction core live in `agora/`, crates of the demo games (server and web ui) in `game/` and `tcg/`, the generic `event-sourcing` crate in `event-sourcing/`; the crate `agora-core` is in `agora/core`, `game-server` in `game/server`, and so on.
 
@@ -17,7 +17,7 @@ Rust workspace. Crates of the auction core live in `agora/`, crates of the demo 
 - `game-server`: demo game server. Adapters (HTTP on port 8080, system clock) and wiring.
 - `game-dto`: HTTP requests and responses shared by `game-server` and `game-ui`.
 - `game-ui`: web app (Yew, built with Trunk), served on port 3000.
-- `tcg-*`: the trading card game, same crates as `game-*` on top of `ledger` (`tcg-domain`, `tcg-api`, `tcg-spi`, `tcg-core`, `tcg-server`, `tcg-dto`, `tcg-ui`). A collector holds dust (the money, one unit per dust) and copies of cards, which are interchangeable. A listing always holds a single card: `SellCommand` has no quantity, so prices are per card. The base value of a card, used for the deposit, comes from its rarity.
+- `tcg-*`: the trading card game, same crates as `game-*` on top of `ledger` (`tcg-domain`, `tcg-api`, `tcg-spi`, `tcg-core`, `tcg-server`, `tcg-dto`, `tcg-ui`). A collector holds dust (the money, one unit per dust) and copies of cards, which are interchangeable. A listing always holds a single card, bought whole: `SellCommand` has no quantity, so prices are per card. The base value of a card, used for the deposit, comes from its rarity.
 
 ## Setup
 
@@ -44,7 +44,7 @@ cargo run -p game-server
 
 The API is under <http://127.0.0.1:8080/api/>. State is in memory and lost on restart.
 
-Settings are read from `game.toml` in the working directory (set `GAME_CONFIG` to read another file): listen address, settlement delay (every second by default), log levels per target, auction houses (`[[house]]`), item catalog (`catalog` array). Every key is optional except `catalog`, which has no default: without a catalog the server refuses to start. Environment variables override the file: `BIND_ADDR` for the listen address, `RUST_LOG` for the whole log table.
+Settings are read from `game.toml` in the working directory (set `GAME_CONFIG` to read another file): listen address, settlement delay (every second by default), log levels per target, auction houses (`[[house]]`), item catalog (`catalog` array). Every key is optional except `catalog`, which has no default: without a catalog the server refuses to start. Each catalog entry may set `commodity = true`: a commodity (resource, consumable) is sold at a fixed price only and can be bought in part, the seller getting back the matching share of the deposit; any other item is auctioned and bought whole. Environment variables override the file: `BIND_ADDR` for the listen address, `RUST_LOG` for the whole log table.
 
 Logs go to stdout. With the default log table, they show business events, rejected requests, settlement and every ledger call Agora makes to the game (with its `OpId`). Set `tower_http` to `debug` to also log every HTTP response, or every level to `info` to keep only business events, rejected requests and settlement.
 

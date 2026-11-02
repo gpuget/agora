@@ -47,6 +47,14 @@ pub enum AuctionError {
     HasBids,
     #[error("listing has no buyout price")]
     NoBuyout,
+    #[error("a commodity listing needs a buyout price")]
+    CommodityNeedsBuyout,
+    #[error("a commodity cannot receive bids")]
+    BidsNotAllowed,
+    #[error("quantity must be between 1 and {available}")]
+    QuantityOutOfRange { available: u32 },
+    #[error("this item can only be bought as a whole, quantity must be {available}")]
+    PartialNotAllowed { available: u32 },
     #[error("page limit must be between 1 and {max}")]
     InvalidPage { max: u32 },
     #[error("listing changed concurrently, try again")]

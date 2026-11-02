@@ -77,6 +77,7 @@ fn game() -> Game {
         item_type: cloth(),
         name: "Étoffe de lin".into(),
         base_value: Money(13),
+        commodity: false,
     }]);
     GameService::new(
         InMemoryPlayerProjection::default(),
@@ -148,7 +149,7 @@ async fn auction_errors_are_passed_through() {
     let house = game.open_auction_house(config()).await.unwrap();
     game.sell(sell(house.id, cloth())).await.unwrap();
     let missing = ListingId(Default::default());
-    let err = game.buyout(alice(), missing).await.unwrap_err();
+    let err = game.buyout(alice(), missing, 1).await.unwrap_err();
     assert_eq!(
         err,
         GameError::Auction(agora_domain::AuctionError::ListingNotFound)

@@ -54,10 +54,12 @@ pub trait GameApi: Send + Sync {
         unit_price: Money,
     ) -> impl Future<Output = Result<BidOutcome, GameError>> + Send;
 
+    /// Buys `quantity` items. Only a commodity can be bought in part.
     fn buyout(
         &self,
         player: PlayerRef,
         listing: ListingId,
+        quantity: u32,
     ) -> impl Future<Output = Result<(), GameError>> + Send;
 
     fn cancel(

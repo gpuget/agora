@@ -55,6 +55,13 @@ pub fn base_value(catalog: &[CatalogEntry], item_type: &ItemType) -> Money {
         .map_or(Money::ZERO, |e| e.base_value)
 }
 
+pub fn is_commodity(catalog: &[CatalogEntry], item_type: &ItemType) -> bool {
+    catalog
+        .iter()
+        .find(|e| &e.item_type == item_type)
+        .is_some_and(|e| e.commodity)
+}
+
 pub fn input_value(e: &InputEvent) -> String {
     e.target_unchecked_into::<HtmlInputElement>().value()
 }

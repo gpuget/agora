@@ -40,8 +40,9 @@ Les ports sont asynchrones (`async fn` dans les traits, futures `Send`). `Auctio
 
 - **Monnaie** : `Money(u64)` dans la plus petite unité (cuivre). L'affichage (po/pa/pc) relève du jeu.
 - **Taux** : `Bps(u32)`, points de base (`500` = 5 %). Tous les calculs de taux arrondissent à l'unité inférieure.
-- **Objet** : `ItemStack { item_type, quantity, base_value, attributes }`.
+- **Objet** : `ItemStack { item_type, quantity, commodity, base_value, attributes }`.
   - `item_type` : id opaque défini par le jeu.
+  - `commodity` : fourni par le jeu. Une commodité (ressource, consommable) ne reçoit pas d'enchère et peut être achetée en partie. Tout autre objet (équipement, objet rare) est mis aux enchères et acheté en entier.
   - `base_value` : valeur unitaire fournie par le jeu, sert au calcul du dépôt. Le core fait confiance à l'appelant : un adaptateur exposé à des clients joueurs doit la renseigner côté serveur, jamais depuis la requête.
   - `attributes` : JSON opaque, stocké et renvoyé tel quel.
 - **Maison** (`AuctionHouse`) : un jeu crée autant de maisons qu'il veut (par faction, neutre...). Les marchés sont isolés. Configuration :
@@ -60,7 +61,7 @@ Les ports sont asynchrones (`async fn` dans les traits, futures `Send`). `Auctio
 | `create_listing(cmd)` | Retire la pile de l'inventaire du vendeur (séquestre), débite le dépôt, crée la vente. |
 | `cancel_listing(seller, id)` | Rend la pile au vendeur. Le dépôt est perdu (`MoneySink`). |
 | `place_bid(bidder, id, unit_price)` | Débite l'enchérisseur, rembourse le précédent meilleur enchérisseur. Une enchère supérieure ou égale à l'achat immédiat devient un achat immédiat. |
-| `buyout(buyer, id)` | Achat immédiat au prix `buyout_unit_price`. |
+| `buyout(buyer, id, quantity)` | Achat immédiat de `quantity` objets au prix `buyout_unit_price`. Commodité : `1..=restant`, la vente reste ouverte avec le reste. Autre objet : `quantity` doit être le restant. |
 | `settle_expired()` | Règle les ventes échues (lot de 100). À appeler périodiquement par l'extérieur. |
 | `search(query)` | Ventes actives d'une maison, filtrées et paginées. |
 
@@ -73,13 +74,14 @@ Les ports sont asynchrones (`async fn` dans les traits, futures `Send`). `Auctio
 5. La première enchère doit être supérieure ou égale à la mise à prix. Les suivantes doivent atteindre `enchère_courante + max(min_increment, enchère_courante * increment / 10 000)`.
 6. Expiration sans enchère : la pile revient au vendeur, le dépôt est perdu.
 7. Expiration avec enchère : la pile va au meilleur enchérisseur ; le vendeur reçoit `total - commission + dépôt`.
-8. Achat immédiat : le vendeur reçoit `total - commission + dépôt`.
-9. Annulation possible seulement sans enchère : la pile revient au vendeur, le dépôt est perdu.
+8. Achat immédiat : le vendeur reçoit `prix unitaire * quantité achetée - commission + part du dépôt`. La part du dépôt est proportionnelle à la quantité achetée (`dépôt * quantité / restant`, arrondi inférieur) et tout le dépôt restant revient à l'achat du dernier lot. La vente garde le dépôt qui couvre le restant.
+9. Annulation possible seulement sans enchère : le restant revient au vendeur, le dépôt restant est perdu.
 10. La commission est calculée sur le total final, au taux figé à la création.
 11. Le dépôt est figé à la création : `base_value * quantité * deposit / 10 000 * deposit_multiplier`.
 12. Commission et dépôts perdus vont au port `MoneySink` ; le jeu décide de leur sort.
 13. Une vente dont `ends_at` est passé n'accepte plus ni enchère, ni achat, ni annulation, même si elle n'est pas encore réglée.
-14. Validations à la création : quantité > 0, mise à prix > 0, achat immédiat supérieur ou égal à la mise à prix, durée autorisée par la maison, totaux et dépôt sans dépassement de `u64`.
+14. Une commodité n'accepte aucune enchère (`BidsNotAllowed`) et exige un prix d'achat immédiat à la création (`CommodityNeedsBuyout`).
+15. Validations à la création : quantité > 0, mise à prix > 0, achat immédiat supérieur ou égal à la mise à prix, durée autorisée par la maison, totaux et dépôt sans dépassement de `u64`.
 
 Recherche : seules les ventes `Active` sont renvoyées. Filtres : `item_type`, `seller`, `high_bidder`. Tri par prix unitaire croissant (achat immédiat s'il existe, sinon l'enchère courante ou la mise à prix), puis par `ends_at`. Pagination `limit` (1 à 100) / `offset`.
 

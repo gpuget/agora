@@ -1,6 +1,6 @@
 use agora_api::{AuctionApi, BidOutcome, CreateListing};
 use agora_domain::{
-    AuctionError, AuctionHouse, Bid, HouseConfig, HouseId, Listing, ListingId, ListingStatus,
+    AuctionError, AuctionHouse, Bid, HouseConfig, HouseId, ItemStack, Listing, ListingId, ListingStatus,
     Money, OpId, Page, PlayerRef, SearchQuery,
 };
 use agora_spi::{AuctionRepository, Clock, Inventory, MoneySink, RepoError, SinkReason, Wallet};
@@ -114,21 +114,24 @@ where
         Ok(())
     }
 
-    /// Delivers the stack to the buyer, pays the seller and sends the commission to the sink.
-    async fn pay_out(
-        &self,
-        listing: &Listing,
-        buyer: &PlayerRef,
-        unit_price: Money,
-    ) -> Result<(), AuctionError> {
-        let total = listing.total(unit_price).ok_or(AuctionError::Overflow)?;
+    /// Delivers the sold items to the buyer, pays the seller and sends the commission to the
+    /// sink. `listing` is the saved listing.
+    async fn pay_out(&self, listing: &Listing, sale: &Sale<'_>) -> Result<(), AuctionError> {
+        let total = sale
+            .unit_price
+            .checked_mul(u64::from(sale.quantity))
+            .ok_or(AuctionError::Overflow)?;
         let commission = total.apply_bps(listing.commission);
         let proceeds = total
             .checked_sub(commission)
-            .and_then(|m| m.checked_add(listing.deposit))
+            .and_then(|m| m.checked_add(sale.deposit_refund))
             .ok_or(AuctionError::Overflow)?;
+        let delivered = ItemStack {
+            quantity: sale.quantity,
+            ..listing.item.clone()
+        };
         self.inventory
-            .deposit_item(effect_op(listing, DELIVER_ITEM), buyer, &listing.item)
+            .deposit_item(effect_op(listing, DELIVER_ITEM), sale.buyer, &delivered)
             .await?;
         self.wallet
             .credit(effect_op(listing, PAY_SELLER), &listing.seller, proceeds)
@@ -149,7 +152,7 @@ where
         Ok(())
     }
 
-    /// Returns the stack to the seller and forfeits the deposit.
+    /// Returns the unsold items to the seller and forfeits the deposit still held.
     async fn return_unsold(&self, listing: &Listing) -> Result<(), AuctionError> {
         self.inventory
             .deposit_item(
@@ -174,22 +177,54 @@ where
         Ok(())
     }
 
-    /// One buyout attempt on an already loaded open listing. `Ok(false)` on version conflict.
-    async fn try_buyout(&self, listing: Listing, buyer: &PlayerRef) -> Result<bool, AuctionError> {
+    /// One buyout attempt of `quantity` items on an already loaded open listing. `Ok(false)` on
+    /// version conflict.
+    async fn try_buyout(
+        &self,
+        listing: Listing,
+        buyer: &PlayerRef,
+        quantity: u32,
+    ) -> Result<bool, AuctionError> {
         if &listing.seller == buyer {
             return Err(AuctionError::SellerCannotBuy);
         }
         let unit_price = listing.buyout_unit_price.ok_or(AuctionError::NoBuyout)?;
-        let total = listing.total(unit_price).ok_or(AuctionError::Overflow)?;
+        let available = listing.item.quantity;
+        if listing.item.commodity {
+            if quantity == 0 || quantity > available {
+                return Err(AuctionError::QuantityOutOfRange { available });
+            }
+        } else if quantity != available {
+            return Err(AuctionError::PartialNotAllowed { available });
+        }
+        let total = unit_price
+            .checked_mul(u64::from(quantity))
+            .ok_or(AuctionError::Overflow)?;
         let debit = new_op();
         self.wallet.debit(debit, buyer, total).await?;
 
         let previous = listing.high_bid.clone();
-        let mut sold = listing;
-        sold.status = ListingStatus::Sold {
-            buyer: buyer.clone(),
+        let sale = Sale {
+            buyer,
             unit_price,
+            quantity,
+            deposit_refund: listing.deposit_share(quantity),
         };
+        let mut sold = listing;
+        if quantity == available {
+            sold.status = ListingStatus::Sold {
+                buyer: buyer.clone(),
+                unit_price,
+            };
+        } else {
+            // Partial sale: the listing stays open with what is left and the deposit that
+            // covers it.
+            sold.item.quantity = available - quantity;
+            sold.deposit = sold
+                .deposit
+                .checked_sub(sale.deposit_refund)
+                .ok_or(AuctionError::Overflow)?;
+        }
         if !self.save_or_refund(&mut sold, buyer, total, debit).await? {
             return Ok(false);
         }
@@ -197,7 +232,7 @@ where
         if let Some(bid) = &previous {
             self.refund_bid(&sold, bid).await?;
         }
-        self.pay_out(&sold, buyer, unit_price).await?;
+        self.pay_out(&sold, &sale).await?;
         Ok(true)
     }
 
@@ -209,6 +244,9 @@ where
         unit_price: Money,
     ) -> Result<Option<BidOutcome>, AuctionError> {
         let listing = self.load_open(id).await?;
+        if listing.item.commodity {
+            return Err(AuctionError::BidsNotAllowed);
+        }
         if &listing.seller == bidder {
             return Err(AuctionError::SellerCannotBuy);
         }
@@ -216,7 +254,8 @@ where
             .buyout_unit_price
             .is_some_and(|buyout| unit_price >= buyout)
         {
-            let bought = self.try_buyout(listing, bidder).await?;
+            let quantity = listing.item.quantity;
+            let bought = self.try_buyout(listing, bidder, quantity).await?;
             return Ok(bought.then_some(BidOutcome::Bought));
         }
         if listing
@@ -295,6 +334,9 @@ where
             .is_some_and(|b| b < cmd.start_unit_price)
         {
             return Err(AuctionError::BuyoutBelowStart);
+        }
+        if cmd.item.commodity && cmd.buyout_unit_price.is_none() {
+            return Err(AuctionError::CommodityNeedsBuyout);
         }
         let highest_unit_price = cmd.buyout_unit_price.unwrap_or(cmd.start_unit_price);
         highest_unit_price
@@ -387,10 +429,15 @@ where
         Err(AuctionError::Conflict)
     }
 
-    async fn buyout(&self, buyer: PlayerRef, id: ListingId) -> Result<(), AuctionError> {
+    async fn buyout(
+        &self,
+        buyer: PlayerRef,
+        id: ListingId,
+        quantity: u32,
+    ) -> Result<(), AuctionError> {
         for _ in 0..MAX_ATTEMPTS {
             let listing = self.load_open(id).await?;
-            if self.try_buyout(listing, &buyer).await? {
+            if self.try_buyout(listing, &buyer, quantity).await? {
                 return Ok(());
             }
         }
@@ -420,7 +467,15 @@ where
                 continue;
             }
             match &winner {
-                Some(bid) => self.pay_out(&listing, &bid.bidder, bid.unit_price).await?,
+                Some(bid) => {
+                    let sale = Sale {
+                        buyer: &bid.bidder,
+                        unit_price: bid.unit_price,
+                        quantity: listing.item.quantity,
+                        deposit_refund: listing.deposit,
+                    };
+                    self.pay_out(&listing, &sale).await?;
+                }
                 None => self.return_unsold(&listing).await?,
             }
             settled += 1;
@@ -434,6 +489,15 @@ where
         }
         self.repository.search(&query).await.map_err(repo_error)
     }
+}
+
+/// What a buyer takes out of a listing: the items, their price and the share of the
+/// deposit that goes back to the seller.
+struct Sale<'a> {
+    buyer: &'a PlayerRef,
+    unit_price: Money,
+    quantity: u32,
+    deposit_refund: Money,
 }
 
 // Effects of a committed listing change, named in their `OpId`.

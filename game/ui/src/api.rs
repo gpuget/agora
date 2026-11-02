@@ -1,6 +1,7 @@
 use agora_domain::{ListingId, Money, PlayerRef};
 use game_dto::{
-    BidRequest, BidResponse, BidResult, CreateListingRequest, ErrorBody, PlayerRequest,
+    BidRequest, BidResponse, BidResult, BuyoutRequest, CreateListingRequest, ErrorBody,
+    PlayerRequest,
 };
 use gloo_net::http::{Request, Response};
 use serde::Serialize;
@@ -38,7 +39,7 @@ async fn post<B: Serialize>(url: &str, body: &B) -> Result<Response, String> {
 pub enum Action {
     Sell(CreateListingRequest),
     Bid(ListingId, Money),
-    Buyout(ListingId),
+    Buyout(ListingId, u32),
     Cancel(ListingId),
 }
 
@@ -66,9 +67,9 @@ pub async fn perform(action: Action, player: PlayerRef) -> Result<String, String
                 BidResult::Bought => Ok("Prix d'achat immédiat atteint : objet acheté.".into()),
             }
         }
-        Action::Buyout(id) => post(
+        Action::Buyout(id, quantity) => post(
             &format!("/api/listings/{id}/buyout"),
-            &PlayerRequest { player },
+            &BuyoutRequest { player, quantity },
         )
         .await
         .map(|_| "Objet acheté.".into()),

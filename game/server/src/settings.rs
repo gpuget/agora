@@ -60,6 +60,8 @@ pub struct CatalogSettings {
     pub item_type: String,
     pub name: String,
     pub base_value: u64,
+    #[serde(default)]
+    pub commodity: bool,
 }
 
 impl HouseSettings {
@@ -88,6 +90,7 @@ impl CatalogSettings {
             item_type: self.item_type.as_str().into(),
             name: self.name.clone(),
             base_value: Money(self.base_value),
+            commodity: self.commodity,
         }
     }
 }

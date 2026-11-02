@@ -36,7 +36,8 @@ pub struct Listing {
     pub min_increment: Money,
     /// Frozen from the house config at creation.
     pub increment: Bps,
-    /// Paid by the seller at creation. Returned on sale, forfeited otherwise.
+    /// Paid by the seller at creation, for the quantity still on sale. Returned in proportion
+    /// to the quantity sold, forfeited for what stays unsold.
     pub deposit: Money,
     pub created_at: Timestamp,
     pub ends_at: Timestamp,
@@ -50,6 +51,18 @@ impl Listing {
     /// `unit_price * quantity`, `None` on overflow.
     pub fn total(&self, unit_price: Money) -> Option<Money> {
         unit_price.checked_mul(u64::from(self.item.quantity))
+    }
+
+    /// Part of the deposit that comes back when `quantity` of the remaining items are sold.
+    /// The whole deposit when `quantity` is all of them, so nothing is lost to rounding.
+    pub fn deposit_share(&self, quantity: u32) -> Money {
+        if quantity >= self.item.quantity {
+            return self.deposit;
+        }
+        let share = u128::from(self.deposit.0) * u128::from(quantity)
+            / u128::from(self.item.quantity);
+        // `share` is below `deposit`, so it fits.
+        Money(share as u64)
     }
 
     /// Minimum unit price of the next bid.

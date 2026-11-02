@@ -82,6 +82,7 @@ where
             item: ItemStack {
                 item_type: cmd.item_type.clone(),
                 quantity: cmd.quantity,
+                commodity: entry.commodity,
                 base_value: entry.base_value,
                 attributes: Default::default(),
             },
@@ -117,9 +118,16 @@ where
         Ok(outcome)
     }
 
-    async fn buyout(&self, player: PlayerRef, listing: ListingId) -> Result<(), GameError> {
-        self.auction.buyout(player.clone(), listing).await?;
-        info!(%listing, buyer = %player, "listing bought out");
+    async fn buyout(
+        &self,
+        player: PlayerRef,
+        listing: ListingId,
+        quantity: u32,
+    ) -> Result<(), GameError> {
+        self.auction
+            .buyout(player.clone(), listing, quantity)
+            .await?;
+        info!(%listing, buyer = %player, quantity, "listing bought out");
         Ok(())
     }
 

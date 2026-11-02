@@ -14,7 +14,7 @@ use game_api::{BidOutcome, GameApi, SellCommand};
 use game_domain::GameError;
 use game_dto::{
     BidRequest, BidResponse, BidResult, CatalogEntry, CreateListingRequest, CreateListingResponse,
-    DurationView, ErrorBody, HouseView, ItemCount, ListingsParams, ListingsResponse, PlayerRequest,
+    BuyoutRequest, DurationView, ErrorBody, HouseView, ItemCount, ListingsParams, ListingsResponse, PlayerRequest,
     PlayerView,
 };
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
@@ -90,6 +90,7 @@ async fn catalog(State(game): State<Arc<Game>>) -> ApiResult<Vec<CatalogEntry>> 
                 item_type: e.item_type,
                 name: e.name,
                 base_value: e.base_value,
+                commodity: e.commodity,
             })
             .collect(),
     ))
@@ -197,9 +198,9 @@ async fn bid(
 async fn buyout(
     State(game): State<Arc<Game>>,
     Path(id): Path<Uuid>,
-    Json(req): Json<PlayerRequest>,
+    Json(req): Json<BuyoutRequest>,
 ) -> Result<StatusCode, ApiError> {
-    game.buyout(req.player, ListingId(id)).await?;
+    game.buyout(req.player, ListingId(id), req.quantity).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

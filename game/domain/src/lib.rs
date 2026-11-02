@@ -14,6 +14,8 @@ pub struct CatalogEntry {
     pub name: String,
     /// Value of one item. The game is the only source of this value.
     pub base_value: Money,
+    /// Bought in part and never auctioned, as opposed to equipment and rare items.
+    pub commodity: bool,
 }
 
 pub type Player = Account;

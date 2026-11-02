@@ -11,6 +11,8 @@ pub struct SellItem {
     pub name: String,
     pub held: u32,
     pub base_value: Money,
+    /// Sold at a fixed price only, and bought in part.
+    pub commodity: bool,
 }
 
 #[derive(Properties, PartialEq)]
@@ -46,6 +48,11 @@ pub fn SellForm(props: &SellFormProps) -> Html {
         let duration = duration.clone();
         Callback::from(move |e: Event| duration.set(select_value(&e).parse().unwrap_or(0)))
     };
+    let commodity = props
+        .items
+        .iter()
+        .find(|i| Some(&i.item_type) == item.as_ref())
+        .is_some_and(|i| i.commodity);
     let on_submit = {
         let (item, quantity, start, buyout, duration, total_mode) = (
             item.clone(),
@@ -69,10 +76,19 @@ pub fn SellForm(props: &SellFormProps) -> Html {
                 return;
             };
             let total = *total_mode;
-            let Some(start) = unit_price(&start, u64::from(quantity), total) else {
-                return;
-            };
             let buyout = unit_price(&buyout, u64::from(quantity), total).map(Money);
+            // A commodity has a fixed price: the start price only has to stay below it.
+            let start = if commodity {
+                let Some(price) = buyout else {
+                    return;
+                };
+                price.0
+            } else {
+                let Some(start) = unit_price(&start, u64::from(quantity), total) else {
+                    return;
+                };
+                start
+            };
             on_action.emit(Action::Sell(CreateListingRequest {
                 house,
                 seller: seller.clone(),
@@ -134,11 +150,18 @@ pub fn SellForm(props: &SellFormProps) -> Html {
                     <option value="total" selected={*total_mode}>{ "Prix du lot" }</option>
                 </select>
             </label>
-            <label>{ if *total_mode { "Mise à prix du lot (pc)" } else { "Mise à prix / u (pc)" } }
-                <input type="number" min="1" value={(*start).clone()} oninput={text_input(&start)} />
-            </label>
-            if let Some(text) = start_preview { <p class="deposit">{ text }</p> }
-            <label>{ if *total_mode { "Achat immédiat du lot (pc, optionnel)" } else { "Achat immédiat / u (pc, optionnel)" } }
+            if !commodity {
+                <label>{ if *total_mode { "Mise à prix du lot (pc)" } else { "Mise à prix / u (pc)" } }
+                    <input type="number" min="1" value={(*start).clone()} oninput={text_input(&start)} />
+                </label>
+                if let Some(text) = start_preview { <p class="deposit">{ text }</p> }
+            }
+            <label>{ match (commodity, *total_mode) {
+                (true, true) => "Prix du lot (pc)",
+                (true, false) => "Prix / u (pc)",
+                (false, true) => "Achat immédiat du lot (pc, optionnel)",
+                (false, false) => "Achat immédiat / u (pc, optionnel)",
+            } }
                 <input type="number" min="1" value={(*buyout).clone()} oninput={text_input(&buyout)} />
             </label>
             if let Some(text) = buyout_preview { <p class="deposit">{ text }</p> }

@@ -39,7 +39,8 @@ pub trait AuctionApi: Send + Sync {
         cmd: CreateListing,
     ) -> impl Future<Output = Result<ListingId, AuctionError>> + Send;
 
-    /// Only without bids. Returns the stack to the seller, the deposit is forfeited.
+    /// Only without bids. Returns the unsold items to the seller, the deposit still held is
+    /// forfeited.
     fn cancel_listing(
         &self,
         seller: PlayerRef,
@@ -53,10 +54,14 @@ pub trait AuctionApi: Send + Sync {
         unit_price: Money,
     ) -> impl Future<Output = Result<BidOutcome, AuctionError>> + Send;
 
+    /// Buys `quantity` items at the buyout price. A commodity can be bought in part, the
+    /// listing then stays open with the rest and the seller gets back the matching share of
+    /// the deposit. Any other item must be bought whole.
     fn buyout(
         &self,
         buyer: PlayerRef,
         listing: ListingId,
+        quantity: u32,
     ) -> impl Future<Output = Result<(), AuctionError>> + Send;
 
     /// Settles listings past their end time. Must be called periodically by the host.

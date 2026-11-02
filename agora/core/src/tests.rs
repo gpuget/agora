@@ -86,6 +86,7 @@ fn listing_cmd(house: HouseId, start: u64, buyout: Option<u64>) -> CreateListing
         item: ItemStack {
             item_type: cloth(),
             quantity: 20,
+            commodity: false,
             base_value: Money(10),
             attributes: serde_json::Value::Null,
         },
@@ -299,7 +300,7 @@ async fn seller_cannot_bid_or_buy() {
         AuctionError::SellerCannotBuy
     );
     assert_eq!(
-        service.buyout(alice(), id).await.unwrap_err(),
+        service.buyout(alice(), id, 20).await.unwrap_err(),
         AuctionError::SellerCannotBuy
     );
 }
@@ -365,7 +366,7 @@ async fn bid_after_end_is_rejected_before_settlement() {
         AuctionError::Expired
     );
     assert_eq!(
-        service.buyout(bob(), id).await.unwrap_err(),
+        service.buyout(bob(), id, 20).await.unwrap_err(),
         AuctionError::Expired
     );
     assert_eq!(
@@ -383,7 +384,7 @@ async fn buyout_pays_seller_and_sink() {
         .create_listing(listing_cmd(house, 5, Some(8)))
         .await
         .unwrap();
-    service.buyout(bob(), id).await.unwrap();
+    service.buyout(bob(), id, 20).await.unwrap();
 
     // total 160, commission 8, deposit 20 returned
     assert_eq!(
@@ -406,7 +407,7 @@ async fn buyout_refunds_current_high_bidder() {
         .await
         .unwrap();
     service.place_bid(bob(), id, Money(5)).await.unwrap();
-    service.buyout(carol(), id).await.unwrap();
+    service.buyout(carol(), id, 20).await.unwrap();
 
     assert_eq!(balance(&service, &bob()), START_BALANCE);
     assert_eq!(service.inventory().count(&carol(), &cloth()), 20);
@@ -420,7 +421,7 @@ async fn buyout_requires_a_buyout_price() {
         .await
         .unwrap();
     assert_eq!(
-        service.buyout(bob(), id).await.unwrap_err(),
+        service.buyout(bob(), id, 20).await.unwrap_err(),
         AuctionError::NoBuyout
     );
     assert_eq!(balance(&service, &bob()), START_BALANCE);
@@ -433,9 +434,9 @@ async fn sold_listing_is_closed() {
         .create_listing(listing_cmd(house, 5, Some(8)))
         .await
         .unwrap();
-    service.buyout(bob(), id).await.unwrap();
+    service.buyout(bob(), id, 20).await.unwrap();
     assert_eq!(
-        service.buyout(carol(), id).await.unwrap_err(),
+        service.buyout(carol(), id, 20).await.unwrap_err(),
         AuctionError::NotActive
     );
     assert_eq!(
@@ -554,7 +555,7 @@ async fn commission_is_frozen_at_creation() {
         .await
         .unwrap();
 
-    service.buyout(bob(), id).await.unwrap();
+    service.buyout(bob(), id, 20).await.unwrap();
     assert_eq!(service.sink().total(), Money(8));
 }
 
@@ -744,4 +745,103 @@ fn compensation_op_is_derived_from_the_undone_call() {
     assert_eq!(compensation_op(op), compensation_op(op));
     assert_ne!(compensation_op(op), op);
     assert_ne!(compensation_op(new_op()), compensation_op(op));
+}
+
+// ---- commodities ----
+
+fn commodity_cmd(house: HouseId) -> CreateListing {
+    let mut cmd = listing_cmd(house, 5, Some(8));
+    cmd.item.commodity = true;
+    cmd
+}
+
+#[tokio::test]
+async fn commodity_can_be_bought_in_part() {
+    let (service, house) = setup().await;
+    let id = service.create_listing(commodity_cmd(house)).await.unwrap();
+    service.buyout(bob(), id, 5).await.unwrap();
+
+    // total 40, commission 2, a quarter of the deposit (5 of 20) returned
+    assert_eq!(
+        balance(&service, &alice()),
+        Money(START_BALANCE.0 - 20 + 40 - 2 + 5)
+    );
+    assert_eq!(balance(&service, &bob()), Money(START_BALANCE.0 - 40));
+    assert_eq!(service.inventory().count(&bob(), &cloth()), 5);
+    let listing = stored(&service, id);
+    assert_eq!(listing.status, ListingStatus::Active);
+    assert_eq!(listing.item.quantity, 15);
+    assert_eq!(listing.deposit, Money(15));
+
+    service.buyout(carol(), id, 15).await.unwrap();
+    let listing = stored(&service, id);
+    assert!(matches!(listing.status, ListingStatus::Sold { .. }));
+    // 120 - 6 commission + the last 15 of deposit
+    assert_eq!(
+        balance(&service, &alice()),
+        Money(START_BALANCE.0 - 20 + 40 - 2 + 5 + 120 - 6 + 15)
+    );
+    assert_eq!(service.inventory().count(&carol(), &cloth()), 15);
+}
+
+#[tokio::test]
+async fn commodity_buyout_checks_the_quantity() {
+    let (service, house) = setup().await;
+    let id = service.create_listing(commodity_cmd(house)).await.unwrap();
+    for quantity in [0, 21] {
+        assert_eq!(
+            service.buyout(bob(), id, quantity).await.unwrap_err(),
+            AuctionError::QuantityOutOfRange { available: 20 }
+        );
+    }
+    assert_eq!(balance(&service, &bob()), START_BALANCE);
+}
+
+#[tokio::test]
+async fn commodity_takes_no_bid_and_needs_a_buyout() {
+    let (service, house) = setup().await;
+    let mut no_buyout = commodity_cmd(house);
+    no_buyout.buyout_unit_price = None;
+    assert_eq!(
+        service.create_listing(no_buyout).await.unwrap_err(),
+        AuctionError::CommodityNeedsBuyout
+    );
+
+    let id = service.create_listing(commodity_cmd(house)).await.unwrap();
+    assert_eq!(
+        service.place_bid(bob(), id, Money(6)).await.unwrap_err(),
+        AuctionError::BidsNotAllowed
+    );
+}
+
+#[tokio::test]
+async fn other_items_cannot_be_bought_in_part() {
+    let (service, house) = setup().await;
+    let id = service
+        .create_listing(listing_cmd(house, 5, Some(8)))
+        .await
+        .unwrap();
+    assert_eq!(
+        service.buyout(bob(), id, 5).await.unwrap_err(),
+        AuctionError::PartialNotAllowed { available: 20 }
+    );
+    assert_eq!(balance(&service, &bob()), START_BALANCE);
+}
+
+#[tokio::test]
+async fn cancel_after_a_partial_sale_forfeits_the_deposit_still_held() {
+    let (service, house) = setup().await;
+    let id = service.create_listing(commodity_cmd(house)).await.unwrap();
+    service.buyout(bob(), id, 5).await.unwrap();
+    service.cancel_listing(alice(), id).await.unwrap();
+
+    assert_eq!(service.inventory().count(&alice(), &cloth()), 95);
+    assert_eq!(
+        service.sink().records().last().cloned(),
+        Some((
+            house,
+            Money(15),
+            SinkReason::ForfeitedDeposit { listing: id }
+        ))
+    );
 }

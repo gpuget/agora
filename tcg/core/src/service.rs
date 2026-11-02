@@ -85,6 +85,7 @@ where
             item: ItemStack {
                 item_type: cmd.card.clone(),
                 quantity: COPIES_PER_LISTING,
+                commodity: false,
                 base_value: entry.base_value,
                 attributes: Default::default(),
             },
@@ -120,7 +121,9 @@ where
     }
 
     async fn buyout(&self, collector: PlayerRef, listing: ListingId) -> Result<(), TcgError> {
-        self.auction.buyout(collector.clone(), listing).await?;
+        self.auction
+            .buyout(collector.clone(), listing, COPIES_PER_LISTING)
+            .await?;
         info!(%listing, buyer = %collector, "listing bought out");
         Ok(())
     }
