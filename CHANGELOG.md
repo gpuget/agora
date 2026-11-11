@@ -4,6 +4,8 @@ Notable changes of the workspace. The format follows [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-11
+
 ### Added
 
 - Commodities: an item type flagged `commodity` takes no bids, needs a buyout price and can be bought in any quantity up to what is left. The seller gets back the matching share of the deposit; the rest is lost on cancellation or expiry. Other items are auctioned and bought whole. ([ADR 0012](docs/adr/0012-commodities-bought-in-part.md))
@@ -15,7 +17,7 @@ Notable changes of the workspace. The format follows [Keep a Changelog](https://
 
 - **Breaking**: `AuctionApi::buyout` and `GameApi::buyout` take a quantity, and the `game` buyout request carries one.
 - New `ledger` crate shared by `game` and `tcg`: `Account`, its deciders, the treasury, `LedgerApi`, `LedgerService` and `AgoraBridge`. `Player` and `Collector` become aliases of `Account`; ledger errors move to `LedgerError`. ([ADR 0007](docs/adr/0007-event-sourced-shared-ledger.md))
-- Documentation in English, split into functional and technical documents, current state and target.
+- Documentation in English. The README becomes an index by reader with a quick start.
 - Demo games in English: catalog names, default houses ("Neutre" becomes "Neutral", "Marché" becomes "Market"), interface text, and amounts shown as `g s c` instead of `po pa pc`.
 
 ### Removed
