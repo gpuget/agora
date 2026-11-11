@@ -11,9 +11,9 @@ Rust workspace. Crates of the auction core live in `agora/`, crates of the demo 
 - `event-sourcing`: event sourcing independent of any domain: `Decider`, the `EventStore` and `Projection` ports, `execute` and `Projector`. Feature `memory`: in-memory event store.
 - `ledger`: event-sourced ledger shared by the demo games: `Account` (funds and items of a player), the account and treasury deciders, `LedgerApi` and `LedgerService`, and `AgoraBridge`, which implements Agora's outbound ports (`Inventory`, `Wallet`, `MoneySink`) with a `LedgerApi`.
 - `game-domain`: demo game domain (`Player`, an `Account` holding gold, `CatalogEntry`, `GameError`).
-- `game-api`: inbound ports of the game: `GameApi` (player use cases).
+- `game-api`: inbound ports of the game: `GameApi` (player and host use cases).
 - `game-spi`: outbound ports of the game (`PlayerView`, `TreasuryView`, `Catalog`, `HouseRegistry`) plus Agora's `AuctionApi`.
-- `game-core`: `GameService`, `CaughtUpView`. Feature `memory`: in-memory adapters.
+- `game-core`: `GameService`, `CaughtUpView`. Feature `memory`: in-memory projections and adapters.
 - `game-server`: demo game server. Adapters (HTTP on port 8080, system clock) and wiring.
 - `game-dto`: HTTP requests and responses shared by `game-server` and `game-ui`.
 - `game-ui`: web app (Yew, built with Trunk), served on port 3000.
@@ -31,7 +31,7 @@ Prerequisites:
 ## Tests
 
 ```
-cargo test -p agora-domain -p agora-core -p event-sourcing -p game-domain -p game-core -p tcg-domain -p tcg-core
+cargo test -p agora-domain -p agora-core -p event-sourcing -p ledger -p game-domain -p game-core -p tcg-domain -p tcg-core
 ```
 
 ## Run locally
@@ -44,7 +44,7 @@ cargo run -p game-server
 
 The API is under <http://127.0.0.1:8080/api/>. State is in memory and lost on restart.
 
-Settings are read from `game.toml` in the working directory (set `GAME_CONFIG` to read another file): listen address, settlement delay (every second by default), log levels per target, auction houses (`[[house]]`), item catalog (`catalog` array). Every key is optional except `catalog`, which has no default: without a catalog the server refuses to start. Each catalog entry may set `commodity = true`: a commodity (resource, consumable) is sold at a fixed price only and can be bought in part, the seller getting back the matching share of the deposit; any other item is auctioned and bought whole. Environment variables override the file: `BIND_ADDR` for the listen address, `RUST_LOG` for the whole log table.
+Settings are read from `game.toml` in the working directory (set `GAME_CONFIG` to read another file): listen address, settlement delay (every second by default), log levels per target, auction houses (`[[house]]`), item catalog (`catalog` array). Every key is optional except `catalog`, which has no default: without a catalog the server refuses to start. Each catalog entry may set `commodity = true`: a commodity (resource, consumable) is sold at a fixed price only and can be bought in part, the seller getting back the matching share of the deposit; any other item is auctioned and bought whole. Environment variables override the file: `BIND_ADDR` for the listen address, `RUST_LOG` for the whole log table. By default there are two auction houses, "Alliance" (5% commission) and "Neutre" (15% commission), and three players (`alice`, `bob`, `carol`) start with 50 to 200 gold and 1 to 3 random item types. Amounts are in copper (1 gold = 100 silver = 10,000 copper).
 
 Logs go to stdout. With the default log table, they show business events, rejected requests, settlement and every ledger call Agora makes to the game (with its `OpId`). Set `tower_http` to `debug` to also log every HTTP response, or every level to `info` to keep only business events, rejected requests and settlement.
 
@@ -65,7 +65,7 @@ Same steps as the game, on other ports so both can run at once:
 cargo run -p tcg-server
 ```
 
-The API is under <http://127.0.0.1:8081/api/>. Settings are read from `tcg.toml` (set `TCG_CONFIG` to read another file): the same keys as `game.toml`, plus `rarity` (value of one card in dust per rarity), and a `catalog` of cards (`card_id`, `name`, `rarity`).
+The API is under <http://127.0.0.1:8081/api/>. Settings are read from `tcg.toml` (set `TCG_CONFIG` to read another file): the same keys as `game.toml`, plus `rarity` (value of one card in dust per rarity), and a `catalog` of cards (`card_id`, `name`, `rarity`). The `rarity` table is optional (defaults: common 40, rare 100, epic 400, legendary 1600); when present, it must set every rarity to a value greater than zero. By default there is one auction house, "Marché" (5% commission), and three collectors (`alice`, `bob`, `carol`) start with 1000 to 5000 dust and 3 to 6 random cards, 1 to 3 copies each.
 
 ```
 cd tcg/ui
@@ -81,4 +81,4 @@ cd game/ui
 trunk build --release
 ```
 
-Output goes to `game/ui/dist`.
+Output goes to `game/ui/dist`. Same for the trading card game in `tcg/ui`, output in `tcg/ui/dist`.
