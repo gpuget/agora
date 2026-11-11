@@ -9,7 +9,7 @@ Notable changes of the workspace. The format follows [Keep a Changelog](https://
 - Commodities: an item type flagged `commodity` takes no bids, needs a buyout price and can be bought in any quantity up to what is left. The seller gets back the matching share of the deposit; the rest is lost on cancellation or expiry. Other items are auctioned and bought whole. ([ADR 0012](docs/adr/0012-commodities-bought-in-part.md))
 - `game` catalog: optional `commodity` key. `game` interface: quantity input to buy part of a commodity.
 - Rustdoc on the public items of the Agora, `event-sourcing`, `ledger`, game and tcg crates. The rustdoc of `game-dto` and `tcg-dto` is the HTTP reference.
-- `docs/functional.md`, `docs/architecture.md`, `docs/roadmap.md`, architecture decision records in `docs/adr/`, and this changelog.
+- Documentation with one page per reader and need: `docs/getting-started.md`, `docs/functional.md`, `docs/integrate-a-game.md`, `docs/configuration.md`, `docs/architecture.md`, architecture decision records in `docs/adr/`, `docs/roadmap.md`, `CONTRIBUTING.md` and this changelog.
 
 ### Changed
 

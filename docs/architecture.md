@@ -1,6 +1,6 @@
 # Agora: architecture
 
-How Agora and its demo games are built. This document describes the current state. Business rules are in [functional.md](functional.md), the decisions behind this design in [adr/](adr/), and the target in [roadmap.md](roadmap.md). The API of each crate is documented in its rustdoc: `cargo doc --no-deps --workspace --open`.
+For whoever changes the code: how Agora and its demo games are built. This document describes the current state. Business rules are in [functional.md](functional.md), the decisions behind this design in [adr/](adr/), and the target in [roadmap.md](roadmap.md). The API of each crate is documented in its rustdoc: `cargo doc --no-deps --workspace --open`.
 
 ## 1. Overview
 
@@ -142,7 +142,7 @@ No guarantee today: if a port fails in the middle of a use case, money or items 
 
 Each server (`game/server/src/main.rs`, `tcg/server/src/main.rs`):
 
-1. reads its settings file (section 8);
+1. reads its settings file;
 2. creates the event stores, the `LedgerService` and opens the starting accounts;
 3. builds the `CaughtUpView` read models;
 4. builds `AuctionService` with `InMemoryAuctionRepository`, `AgoraBridge` (as inventory, wallet and sink) and `SystemClock`;
@@ -150,64 +150,21 @@ Each server (`game/server/src/main.rs`, `tcg/server/src/main.rs`):
 6. spawns the settlement loop, every `settle_every_secs` seconds;
 7. serves HTTP.
 
-### HTTP API
+Settings: [configuration.md](configuration.md).
 
-Prefix `/api`. Request and response bodies are JSON; their fields and units are documented in the rustdoc of `game-dto` and `tcg-dto`.
+### HTTP adapter
 
-| Method and path | Use |
-|---|---|
-| `GET /catalog` | Item types (`game`) or cards (`tcg`) of the catalog. |
-| `GET /houses` | Houses and their terms. |
-| `GET /players` (`game`), `GET /collectors` (`tcg`) | Accounts with their money and items. |
-| `GET /sink` | Total money taken out of the game. |
-| `GET /houses/{house}/listings` | Search. Query: `item_type` (`game`) or `card` (`tcg`), `seller`, `high_bidder`, `limit` (default 50, at most 100), `offset` (default 0). The response carries the server time `now`. |
-| `POST /listings` | Sell. |
-| `POST /listings/{id}/bid` | Bid. Answers whether the bid leads or bought the listing. |
-| `POST /listings/{id}/buyout` | Buy out. `204 No Content`. |
-| `POST /listings/{id}/cancel` | Cancel. `204 No Content`. |
+`adapters/http.rs` maps each route to one call of the game service and turns `GameError` (or `TcgError`) into a status: 404 for an unknown house or listing, 409 for a conflict, 500 for a storage error or an unexpected port error, 422 for every other refusal. The body is `{"error": "<message>"}`.
 
-Errors answer `{"error": "<message>"}` with:
+The API reference (routes, query parameters, payloads, units, statuses) is the rustdoc of `game-dto` and `tcg-dto`: `cargo doc --no-deps -p game-dto -p tcg-dto --open`, or the crate docs in [game/dto/src/lib.rs](../game/dto/src/lib.rs) and [tcg/dto/src/lib.rs](../tcg/dto/src/lib.rs).
 
-| Status | When |
-|---|---|
-| 404 | Unknown house or listing. A search on an unknown house is not an error: it returns an empty page. |
-| 409 | Listing version conflict after the retries, or an event store conflict raised by the game service itself. |
-| 500 | Repository or storage error, or a port error other than insufficient funds and unavailable item. This includes an unknown player and a ledger conflict after its retries: `AgoraBridge` turns both into `PortError::Other`. |
-| 422 | Any other refusal (business rule, validation). |
-
-The messages are listed in [functional.md](functional.md#9-errors).
+Two mappings can surprise: an unknown player and a ledger conflict after its retries both answer 500, because `AgoraBridge` turns them into `PortError::Other`. A search on an unknown house answers an empty page, not 404.
 
 ### Interfaces
 
-Yew apps built with Trunk. `trunk serve` serves `game-ui` on port 3000 and `tcg-ui` on port 3001, and proxies `/api/` to the server address written in their `Trunk.toml`. Each interface polls the server every second.
+Yew apps built to WebAssembly with Trunk. They depend only on `agora-domain` and their DTO crate. `trunk serve` proxies `/api/` to the server address written in their `Trunk.toml`. Each interface polls the server every second. `trunk build --release` in `game/ui` or `tcg/ui` writes a production build to its `dist` folder.
 
-## 8. Configuration
-
-Each server reads a TOML file from the working directory: `game.toml` or `tcg.toml`, or the file named by `GAME_CONFIG` or `TCG_CONFIG`. A missing file means defaults, but the catalog has no default, so the server refuses to start without one. The shipped files show every default and are checked by a test (`shipped_file_shows_the_defaults`).
-
-| Key | Default | Notes |
-|---|---|---|
-| `bind_addr` | `127.0.0.1:8080` (`game`), `127.0.0.1:8081` (`tcg`) | `BIND_ADDR` overrides it. |
-| `settle_every_secs` | `1` | Above zero. |
-| `[log]` | per target levels | `default` sets every other target. `RUST_LOG` overrides the whole table. |
-| `[[house]]` | see [functional.md](functional.md#10-demo-games) | At least one. Every key required: `name`, `commission`, `min_increment`, `increment`, `deposit`, `durations` (`minutes`, `deposit_multiplier`). |
-| `catalog` | none | `game`: `item_type`, `name`, `base_value`, optional `commodity`. `tcg`: `card_id`, `name`, `rarity`. |
-| `rarity` (`tcg`) | common 40, rare 100, epic 400, legendary 1600 | Every rarity required when the table is present. |
-
-Unknown keys are rejected. The server also rejects: duplicate house names, a duration listed twice in a house, a deposit multiplier of 0, an empty or duplicate catalog entry, a base value or rarity value of 0. Agora itself checks the rest of the house terms when the house is opened (see functional.md, section 3).
-
-## 9. Tests
-
-`cargo test --workspace` runs:
-
-- `agora-core`: every business rule, on the in-memory adapters and a manual clock, including that a version conflict during a bid does not debit the bidder twice.
-- `ledger`, `game-core`, `tcg-core`: a replayed `OpId` has no effect, and projections rebuild from the events.
-- `game-server`, `tcg-server`: settings parsing and validation, and that the shipped TOML files match the defaults.
-- `event-sourcing`, `agora-domain`: their own unit tests.
-
-Not covered by automated tests: the interfaces, and settlement end to end through the HTTP API.
-
-## 10. Technical limits
+## 8. Technical limits
 
 - **Persistence**: the Agora repository, the event stores, the projections and the house registries are in memory. All state is lost on restart.
 - **Failures**: see section 6.
