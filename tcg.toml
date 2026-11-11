@@ -19,12 +19,12 @@ rarity = { common = 40, rare = 100, epic = 400, legendary = 1600 }
 # cards, 1 to 3 copies each. A listing always holds a single copy.
 # Keep this key above [log] and [[house]]: a key written after a table belongs to that table.
 catalog = [
-  { card_id = "goblin_scout", name = "Éclaireur gobelin", rarity = "common" },
-  { card_id = "village_healer", name = "Guérisseuse du village", rarity = "common" },
-  { card_id = "frost_mage", name = "Mage de givre", rarity = "rare" },
-  { card_id = "iron_golem", name = "Golem de fer", rarity = "rare" },
-  { card_id = "shadow_pact", name = "Pacte d'ombre", rarity = "epic" },
-  { card_id = "fire_drake", name = "Drake de feu", rarity = "legendary" },
+  { card_id = "goblin_scout", name = "Goblin scout", rarity = "common" },
+  { card_id = "village_healer", name = "Village healer", rarity = "common" },
+  { card_id = "frost_mage", name = "Frost mage", rarity = "rare" },
+  { card_id = "iron_golem", name = "Iron golem", rarity = "rare" },
+  { card_id = "shadow_pact", name = "Shadow pact", rarity = "epic" },
+  { card_id = "fire_drake", name = "Fire drake", rarity = "legendary" },
 ]
 
 # Log level per target: trace, debug, info, warn, error or off. `default` sets the level of
@@ -45,7 +45,7 @@ tower_http = "info"
 # House names must be unique.
 
 [[house]]
-name = "Marché"
+name = "Market"
 commission = 500
 min_increment = 1
 increment = 500

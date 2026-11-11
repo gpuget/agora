@@ -41,11 +41,11 @@ pub fn FilterBar(props: &FilterBarProps) -> Html {
 
     html! {
         <div class="filters">
-            { tab(Filter::All, "Toutes les ventes") }
-            { tab(Filter::MySales, "Mes ventes") }
-            { tab(Filter::MyBids, "Mes enchères") }
+            { tab(Filter::All, "All listings") }
+            { tab(Filter::MySales, "My listings") }
+            { tab(Filter::MyBids, "My bids") }
             <select onchange={on_item_filter}>
-                <option value="" selected={props.item_filter.is_none()}>{ "Toutes les cartes" }</option>
+                <option value="" selected={props.item_filter.is_none()}>{ "All cards" }</option>
                 { for props.catalog.iter().map(|e| html! {
                     <option value={e.card.to_string()} selected={props.item_filter.as_ref() == Some(&e.card)}>{ e.name.clone() }</option>
                 }) }

@@ -8,19 +8,19 @@ pub fn money(amount: Money) -> String {
     let (gold, silver, copper) = (amount.0 / 10_000, amount.0 / 100 % 100, amount.0 % 100);
     let mut parts = Vec::new();
     if gold > 0 {
-        parts.push(format!("{gold} po"));
+        parts.push(format!("{gold} g"));
     }
     if silver > 0 {
-        parts.push(format!("{silver} pa"));
+        parts.push(format!("{silver} s"));
     }
     if copper > 0 || parts.is_empty() {
-        parts.push(format!("{copper} pc"));
+        parts.push(format!("{copper} c"));
     }
     parts.join(" ")
 }
 
 /// Converts a price typed by the user into a unit price. In total mode the
-/// stack price is divided by the quantity, rounded to the nearest pc.
+/// stack price is divided by the quantity, rounded to the nearest copper.
 pub fn unit_price(raw: &str, quantity: u64, total: bool) -> Option<u64> {
     let value = raw.parse::<u64>().ok()?;
     if !total {
@@ -35,7 +35,7 @@ pub fn unit_price(raw: &str, quantity: u64, total: bool) -> Option<u64> {
 pub fn time_left(now: Timestamp, end: Timestamp) -> String {
     let secs = now.until(end).as_secs();
     if secs == 0 {
-        "terminée".into()
+        "ended".into()
     } else {
         format!("{}m {:02}s", secs / 60, secs % 60)
     }

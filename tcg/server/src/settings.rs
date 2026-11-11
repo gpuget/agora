@@ -168,7 +168,7 @@ impl Default for Settings {
                 epic: 400,
                 legendary: 1_600,
             },
-            houses: vec![default_house("Marché", 500)],
+            houses: vec![default_house("Market", 500)],
             catalog: Vec::new(),
         }
     }

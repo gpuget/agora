@@ -40,9 +40,9 @@ The first build takes a while. Then open <http://127.0.0.1:3000>.
 
 ## 3. Find your way
 
-- Header: "Joueur" picks the player you act as (there is no login), "Hôtel des ventes" picks the house, "Or retiré du jeu" shows the money the houses took out of the game.
-- Left: "Mon personnage" shows your gold and items, and "Vendre" is the sell form. Amounts read `po` (gold), `pa` (silver), `pc` (copper): 1 po = 100 pa = 10,000 pc.
-- Right: the listings of the house. "Toutes les ventes" shows all of them, "Mes ventes" yours, "Mes enchères" those where you hold the high bid.
+- Header: "Player" picks the player you act as (there is no login), "Auction house" picks the house, "Gold taken out of the game" shows the money the houses took out of the game.
+- Left: "My character" shows your gold and items, and "Sell" is the sell form. Amounts read `g` (gold), `s` (silver), `c` (copper): 1 g = 100 s = 10,000 c.
+- Right: the listings of the house. "All listings" shows all of them, "My listings" yours, "My bids" those where you hold the high bid.
 
 The page refreshes every second.
 
@@ -50,36 +50,36 @@ The page refreshes every second.
 
 Linen cloth, copper ore and healing potions are commodities: sold at a fixed price, bought in any quantity.
 
-1. In "Joueur", pick a player who holds one of them ("Étoffe de lin", "Minerai de cuivre" or "Potion de soins"). Try the others if needed.
-2. In "Vendre", choose the item, set "Quantité" to 10, keep "Prix unitaire", and type 100 in "Prix / u (pc)".
+1. In "Player", pick a player who holds one of them. Try the others if needed.
+2. In "Sell", choose the item, set "Quantity" to 10, keep "Unit price", and type 100 in the price field.
 3. Pick the 10-minute duration. The form shows the deposit it will cost.
-4. Click "Mettre en vente".
+4. Click "List for sale".
 
-Your items and your gold go down: the stack is now held by the house, and you paid the deposit. The listing shows in "Mes ventes".
+Your items and your gold go down: the stack is now held by the house, and you paid the deposit. The listing shows in "My listings".
 
 ## 5. Buy part of it
 
-1. Switch "Joueur" to another player.
-2. On the listing, type 3 in the quantity field and click "Acheter".
+1. Switch "Player" to another player.
+2. On the listing, type 3 in the quantity field and click "Buy".
 
-The buyer pays 300 pc and receives 3 items. Switch back to the seller: they received 300 pc minus the commission of the house, plus the share of the deposit that covers 3 items. The listing stays open with 7 items, and "Or retiré du jeu" went up by the commission.
+The buyer pays 300 c and receives 3 items. Switch back to the seller: they received 300 c minus the commission of the house, plus the share of the deposit that covers 3 items. The listing stays open with 7 items, and "Gold taken out of the game" went up by the commission.
 
 How each amount is computed: [functional.md, section 7](functional.md#7-money-flows).
 
 ## 6. Run an auction
 
-The iron sword ("Épée en fer") is not a commodity: it is auctioned and bought whole.
+The iron sword is not a commodity: it is auctioned and bought whole.
 
 1. Pick a player who holds one. If nobody does, restart the server: items are drawn again.
-2. Sell it with a start price ("Mise à prix / u (pc)") of 10000, no buyout price, and the 2-minute duration.
-3. Switch to a second player. The bid field of the listing holds the start price: click "Enchérir".
-4. Switch to a third player, type 11000 in the bid field and click "Enchérir". A new bid must add at least 5 % to the previous one, so 10500 at least here. The second player gets their money back, and the listing leaves their "Mes enchères" tab.
+2. Sell it with a start price of 10000, no buyout price, and the 2-minute duration.
+3. Switch to a second player. The bid field of the listing holds the start price: click "Bid".
+4. Switch to a third player, type 11000 in the bid field and click "Bid". A new bid must add at least 5 % to the previous one, so 10500 at least here. The second player gets their money back, and the listing leaves their "My bids" tab.
 
 ## 7. Watch the settlement
 
-When "Temps restant" reaches "terminée", the auction is over: it refuses any bid but has not paid anyone yet. Within a second the server settles it and the listing disappears. The last bidder holds the sword, and the seller received the bid minus the commission, plus the whole deposit.
+When "Time left" reaches "ended", the auction is over: it refuses any bid but has not paid anyone yet. Within a second the server settles it and the listing disappears. The last bidder holds the sword, and the seller received the bid minus the commission, plus the whole deposit.
 
-The commodity listing from step 4 ends the same way after 10 minutes. Since nobody bought the last 7 items, they go back to the seller, and the deposit still held goes to "Or retiré du jeu".
+The commodity listing from step 4 ends the same way after 10 minutes. Since nobody bought the last 7 items, they go back to the seller, and the deposit still held goes to "Gold taken out of the game".
 
 ## 8. Try the trading card game
 

@@ -176,9 +176,9 @@ Two demo games trade on Agora, with the same rules. What differs:
 
 - Each server starts with three players (`alice`, `bob`, `carol`) holding random money and items from the catalog.
 - Everything is kept in memory and lost when the server restarts.
-- The interface has no login: the player is picked from a list. Its text is in French.
+- The interface has no login: the player is picked from a list.
 - Prices can be typed per unit or for the whole stack. A stack price is divided by the quantity and rounded to the nearest unit, so the total paid can differ slightly from the total typed.
-- The "Mes enchères" tab lists the listings where the player is the current high bidder, not every listing they bid on.
+- The "My bids" tab lists the listings where the player is the current high bidder, not every listing they bid on.
 - The table shows the first 50 listings of a house, with no next page.
 
 ## 10. Functional limits

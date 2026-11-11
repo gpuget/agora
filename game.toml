@@ -17,10 +17,10 @@ settle_every_secs = 1
 # The starting players (alice, bob, carol) get random gold and a random choice of these items.
 # Keep this key above [log] and [[house]]: a key written after a table belongs to that table.
 catalog = [
-  { item_type = "linen_cloth", name = "Étoffe de lin", base_value = 13, commodity = true },
-  { item_type = "copper_ore", name = "Minerai de cuivre", base_value = 5, commodity = true },
-  { item_type = "healing_potion", name = "Potion de soins", base_value = 250, commodity = true },
-  { item_type = "iron_sword", name = "Épée en fer", base_value = 4500 },
+  { item_type = "linen_cloth", name = "Linen cloth", base_value = 13, commodity = true },
+  { item_type = "copper_ore", name = "Copper ore", base_value = 5, commodity = true },
+  { item_type = "healing_potion", name = "Healing potion", base_value = 250, commodity = true },
+  { item_type = "iron_sword", name = "Iron sword", base_value = 4500 },
 ]
 
 # Log level per target: trace, debug, info, warn, error or off. `default` sets the level of
@@ -53,7 +53,7 @@ durations = [
 ]
 
 [[house]]
-name = "Neutre"
+name = "Neutral"
 commission = 1500
 min_increment = 1
 increment = 500

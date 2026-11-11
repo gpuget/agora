@@ -46,7 +46,7 @@ pub async fn perform(action: Action, collector: PlayerRef) -> Result<String, Str
     match action {
         Action::Sell(req) => post("/api/listings", &req)
             .await
-            .map(|_| "Carte mise en vente.".into()),
+            .map(|_| "Card listed.".into()),
         Action::Bid(id, price) => {
             let resp = post(
                 &format!("/api/listings/{id}/bid"),
@@ -62,8 +62,8 @@ pub async fn perform(action: Action, collector: PlayerRef) -> Result<String, Str
                 .map_err(|e| e.to_string())?
                 .result
             {
-                BidResult::HighBidder => Ok("Enchère placée.".into()),
-                BidResult::Bought => Ok("Prix d'achat immédiat atteint : carte achetée.".into()),
+                BidResult::HighBidder => Ok("Bid placed.".into()),
+                BidResult::Bought => Ok("Buyout price reached: card bought.".into()),
             }
         }
         Action::Buyout(id) => post(
@@ -71,12 +71,12 @@ pub async fn perform(action: Action, collector: PlayerRef) -> Result<String, Str
             &CollectorRequest { collector },
         )
         .await
-        .map(|_| "Carte achetée.".into()),
+        .map(|_| "Card bought.".into()),
         Action::Cancel(id) => post(
             &format!("/api/listings/{id}/cancel"),
             &CollectorRequest { collector },
         )
         .await
-        .map(|_| "Vente annulée.".into()),
+        .map(|_| "Listing cancelled.".into()),
     }
 }

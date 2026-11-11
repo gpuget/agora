@@ -126,7 +126,7 @@ impl Default for Settings {
             .collect(),
             houses: vec![
                 default_house("Alliance", 500),
-                default_house("Neutre", 1_500),
+                default_house("Neutral", 1_500),
             ],
             catalog: Vec::new(),
         }

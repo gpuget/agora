@@ -37,23 +37,23 @@ pub fn Header(props: &HeaderProps) -> Html {
     html! {
         <header>
             <h1>{ "Agora" }</h1>
-            <label>{ "Joueur " }
+            <label>{ "Player " }
                 <select onchange={on_player}>
                     { for props.players.iter().map(|p| html! {
                         <option value={p.player.to_string()} selected={Some(&p.player) == props.player.as_ref()}>{ p.player.to_string() }</option>
                     }) }
                 </select>
             </label>
-            <label>{ "Hôtel des ventes " }
+            <label>{ "Auction house " }
                 <select onchange={on_house}>
                     { for props.houses.iter().map(|h| html! {
                         <option value={h.id.to_string()} selected={Some(h.id) == props.house}>
-                            { format!("{} (commission {} %)", h.name, f64::from(h.commission) / 100.0) }
+                            { format!("{} (commission {}%)", h.name, f64::from(h.commission) / 100.0) }
                         </option>
                     }) }
                 </select>
             </label>
-            <span class="sink">{ format!("Or retiré du jeu : {}", money(props.sink)) }</span>
+            <span class="sink">{ format!("Gold taken out of the game: {}", money(props.sink)) }</span>
         </header>
     }
 }

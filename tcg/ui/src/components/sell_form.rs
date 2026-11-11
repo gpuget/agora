@@ -94,33 +94,33 @@ pub fn SellForm(props: &SellFormProps) -> Html {
 
     html! {
         <form class="sell" onsubmit={on_submit}>
-            <h2>{ "Vendre une carte" }</h2>
-            <label>{ "Carte" }
+            <h2>{ "Sell a card" }</h2>
+            <label>{ "Card" }
                 <select onchange={on_card}>
                     { for props.cards.iter().map(|c| html! {
                         <option value={c.card.to_string()} selected={card.as_ref() == Some(&c.card)}>{ format!("{} (x{})", c.name, c.copies) }</option>
                     }) }
                 </select>
             </label>
-            <label>{ "Mise à prix (dust)" }
+            <label>{ "Start price (dust)" }
                 <input type="number" min="1" value={(*start).clone()} oninput={text_input(&start)} />
             </label>
-            <label>{ "Achat immédiat (dust, optionnel)" }
+            <label>{ "Buyout price (dust, optional)" }
                 <input type="number" min="1" value={(*buyout).clone()} oninput={text_input(&buyout)} />
             </label>
-            <label>{ "Durée" }
+            <label>{ "Duration" }
                 <select onchange={on_duration}>
                     { for props.house.durations.iter().map(|d| html! {
                         <option value={d.secs.to_string()} selected={*duration == d.secs}>
-                            { format!("{} min (dépôt x{})", d.secs / 60, d.deposit_multiplier) }
+                            { format!("{} min (deposit x{})", d.secs / 60, d.deposit_multiplier) }
                         </option>
                     }) }
                 </select>
             </label>
             <p class="deposit">
-                { format!("Dépôt : {}", deposit.map_or_else(|| "-".to_string(), dust)) }
+                { format!("Deposit: {}", deposit.map_or_else(|| "-".to_string(), dust)) }
             </p>
-            <button type="submit">{ "Mettre en vente" }</button>
+            <button type="submit">{ "List for sale" }</button>
         </form>
     }
 }

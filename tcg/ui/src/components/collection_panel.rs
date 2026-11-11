@@ -13,8 +13,8 @@ pub struct CollectionPanelProps {
 pub fn CollectionPanel(props: &CollectionPanelProps) -> Html {
     html! {
         <>
-            <h2>{ "Ma collection" }</h2>
-            <p>{ format!("Dust : {}", dust(props.view.dust)) }</p>
+            <h2>{ "My collection" }</h2>
+            <p>{ format!("Dust: {}", dust(props.view.dust)) }</p>
             <ul>
                 { for props.view.cards.iter().map(|c| {
                     let rarity = card_entry(&props.catalog, &c.card).map(|e| e.rarity);

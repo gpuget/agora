@@ -37,23 +37,23 @@ pub fn Header(props: &HeaderProps) -> Html {
     html! {
         <header>
             <h1>{ "Agora TCG" }</h1>
-            <label>{ "Collectionneur " }
+            <label>{ "Collector " }
                 <select onchange={on_collector}>
                     { for props.collectors.iter().map(|c| html! {
                         <option value={c.collector.to_string()} selected={Some(&c.collector) == props.collector.as_ref()}>{ c.collector.to_string() }</option>
                     }) }
                 </select>
             </label>
-            <label>{ "Hôtel des ventes " }
+            <label>{ "Auction house " }
                 <select onchange={on_house}>
                     { for props.houses.iter().map(|h| html! {
                         <option value={h.id.to_string()} selected={Some(h.id) == props.house}>
-                            { format!("{} (commission {} %)", h.name, f64::from(h.commission) / 100.0) }
+                            { format!("{} (commission {}%)", h.name, f64::from(h.commission) / 100.0) }
                         </option>
                     }) }
                 </select>
             </label>
-            <span class="sink">{ format!("Dust retirée du jeu : {}", dust(props.sink)) }</span>
+            <span class="sink">{ format!("Dust taken out of the game: {}", dust(props.sink)) }</span>
         </header>
     }
 }

@@ -103,7 +103,7 @@ pub fn SellForm(props: &SellFormProps) -> Html {
 
     let preview = |raw: &str| {
         let unit = unit_price(raw, quantity.parse().ok()?, *total_mode)?;
-        Some(format!("= {} / u", money(Money(unit))))
+        Some(format!("= {} / unit", money(Money(unit))))
     };
     let (start_preview, buyout_preview) = if *total_mode {
         (preview(&start), preview(&buyout))
@@ -133,51 +133,51 @@ pub fn SellForm(props: &SellFormProps) -> Html {
 
     html! {
         <form class="sell" onsubmit={on_submit}>
-            <h2>{ "Vendre" }</h2>
-            <label>{ "Objet" }
+            <h2>{ "Sell" }</h2>
+            <label>{ "Item" }
                 <select onchange={on_item}>
                     { for props.items.iter().map(|i| html! {
                         <option value={i.item_type.to_string()} selected={item.as_ref() == Some(&i.item_type)}>{ format!("{} ({})", i.name, i.held) }</option>
                     }) }
                 </select>
             </label>
-            <label>{ "Quantité" }
+            <label>{ "Quantity" }
                 <input type="number" min="1" value={(*quantity).clone()} oninput={text_input(&quantity)} />
             </label>
-            <label>{ "Saisie des prix" }
+            <label>{ "Price entry" }
                 <select onchange={on_price_mode}>
-                    <option value="unit" selected={!*total_mode}>{ "Prix unitaire" }</option>
-                    <option value="total" selected={*total_mode}>{ "Prix du lot" }</option>
+                    <option value="unit" selected={!*total_mode}>{ "Unit price" }</option>
+                    <option value="total" selected={*total_mode}>{ "Stack price" }</option>
                 </select>
             </label>
             if !commodity {
-                <label>{ if *total_mode { "Mise à prix du lot (pc)" } else { "Mise à prix / u (pc)" } }
+                <label>{ if *total_mode { "Stack start price (c)" } else { "Start price / unit (c)" } }
                     <input type="number" min="1" value={(*start).clone()} oninput={text_input(&start)} />
                 </label>
                 if let Some(text) = start_preview { <p class="deposit">{ text }</p> }
             }
             <label>{ match (commodity, *total_mode) {
-                (true, true) => "Prix du lot (pc)",
-                (true, false) => "Prix / u (pc)",
-                (false, true) => "Achat immédiat du lot (pc, optionnel)",
-                (false, false) => "Achat immédiat / u (pc, optionnel)",
+                (true, true) => "Stack price (c)",
+                (true, false) => "Price / unit (c)",
+                (false, true) => "Stack buyout price (c, optional)",
+                (false, false) => "Buyout price / unit (c, optional)",
             } }
                 <input type="number" min="1" value={(*buyout).clone()} oninput={text_input(&buyout)} />
             </label>
             if let Some(text) = buyout_preview { <p class="deposit">{ text }</p> }
-            <label>{ "Durée" }
+            <label>{ "Duration" }
                 <select onchange={on_duration}>
                     { for props.house.durations.iter().map(|d| html! {
                         <option value={d.secs.to_string()} selected={*duration == d.secs}>
-                            { format!("{} min (dépôt x{})", d.secs / 60, d.deposit_multiplier) }
+                            { format!("{} min (deposit x{})", d.secs / 60, d.deposit_multiplier) }
                         </option>
                     }) }
                 </select>
             </label>
             <p class="deposit">
-                { format!("Dépôt : {}", deposit.map_or_else(|| "-".to_string(), money)) }
+                { format!("Deposit: {}", deposit.map_or_else(|| "-".to_string(), money)) }
             </p>
-            <button type="submit">{ "Mettre en vente" }</button>
+            <button type="submit">{ "List for sale" }</button>
         </form>
     }
 }

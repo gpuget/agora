@@ -50,7 +50,7 @@ fn drake() -> CardId {
 
 fn config() -> HouseConfig {
     HouseConfig {
-        name: "Marché".into(),
+        name: "Market".into(),
         commission: Bps(500),
         min_increment: Money(1),
         increment: Bps(500),
@@ -75,7 +75,7 @@ fn tcg() -> Tcg {
     agora.wallet().set_balance(&alice(), Money(1_000));
     let catalog = StaticCatalog::new(vec![CardEntry {
         card: drake(),
-        name: "Drake de feu".into(),
+        name: "Fire drake".into(),
         rarity: Rarity::Legendary,
         base_value: Money(1_600),
     }]);

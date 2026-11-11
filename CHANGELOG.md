@@ -16,6 +16,7 @@ Notable changes of the workspace. The format follows [Keep a Changelog](https://
 - **Breaking**: `AuctionApi::buyout` and `GameApi::buyout` take a quantity, and the `game` buyout request carries one.
 - New `ledger` crate shared by `game` and `tcg`: `Account`, its deciders, the treasury, `LedgerApi`, `LedgerService` and `AgoraBridge`. `Player` and `Collector` become aliases of `Account`; ledger errors move to `LedgerError`. ([ADR 0007](docs/adr/0007-event-sourced-shared-ledger.md))
 - Documentation in English, split into functional and technical documents, current state and target.
+- Demo games in English: catalog names, default houses ("Neutre" becomes "Neutral", "Marché" becomes "Market"), interface text, and amounts shown as `g s c` instead of `po pa pc`.
 
 ### Removed
 

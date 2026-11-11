@@ -99,22 +99,22 @@ pub fn ListingRow(props: &ListingRowProps) -> Html {
             <td class="actions">
                 if mine {
                     if listing.high_bid.is_none() {
-                        <button onclick={on_cancel}>{ "Annuler" }</button>
+                        <button onclick={on_cancel}>{ "Cancel" }</button>
                     }
                 } else {
                     if commodity {
-                        <input type="number" min="1" max={listing.item.quantity.to_string()} value={(*wanted).clone()} oninput={on_wanted_input} title="Quantité à acheter" />
+                        <input type="number" min="1" max={listing.item.quantity.to_string()} value={(*wanted).clone()} oninput={on_wanted_input} title="Quantity to buy" />
                     }
                     if !leading && !commodity {
-                        <select onchange={on_bid_mode} title="Saisie du prix">
-                            <option value="unit" selected={!*total_mode}>{ "/ u" }</option>
-                            <option value="total" selected={*total_mode}>{ "lot" }</option>
+                        <select onchange={on_bid_mode} title="Price entry">
+                            <option value="unit" selected={!*total_mode}>{ "/ unit" }</option>
+                            <option value="total" selected={*total_mode}>{ "stack" }</option>
                         </select>
-                        <input type="number" min="1" value={(*bid).clone()} oninput={on_bid_input} title={if *total_mode { "Prix du lot en pc" } else { "Prix unitaire en pc" }} />
-                        <button onclick={on_bid}>{ "Enchérir" }</button>
+                        <input type="number" min="1" value={(*bid).clone()} oninput={on_bid_input} title={if *total_mode { "Stack price in c" } else { "Unit price in c" }} />
+                        <button onclick={on_bid}>{ "Bid" }</button>
                     }
                     if listing.buyout_unit_price.is_some() {
-                        <button onclick={on_buyout}>{ "Acheter" }</button>
+                        <button onclick={on_buyout}>{ "Buy" }</button>
                     }
                 }
             </td>

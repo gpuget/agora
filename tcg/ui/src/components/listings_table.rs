@@ -19,13 +19,13 @@ pub fn ListingsTable(props: &ListingsTableProps) -> Html {
     let response = &props.response;
     html! {
         <>
-            <p class="count">{ format!("{} vente(s)", response.page.total) }</p>
+            <p class="count">{ format!("{} listing(s)", response.page.total) }</p>
             <table>
                 <thead>
                     <tr>
-                        <th>{ "Carte" }</th><th>{ "Rareté" }</th><th>{ "Vendeur" }</th>
-                        <th>{ "Enchère" }</th><th>{ "Achat immédiat" }</th>
-                        <th>{ "Meilleur enchérisseur" }</th><th>{ "Temps restant" }</th><th></th>
+                        <th>{ "Card" }</th><th>{ "Rarity" }</th><th>{ "Seller" }</th>
+                        <th>{ "Bid" }</th><th>{ "Buyout price" }</th>
+                        <th>{ "High bidder" }</th><th>{ "Time left" }</th><th></th>
                     </tr>
                 </thead>
                 <tbody>

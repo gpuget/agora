@@ -62,15 +62,15 @@ pub fn ListingRow(props: &ListingRowProps) -> Html {
             <td class="actions">
                 if mine {
                     if listing.high_bid.is_none() {
-                        <button onclick={on_cancel}>{ "Annuler" }</button>
+                        <button onclick={on_cancel}>{ "Cancel" }</button>
                     }
                 } else {
                     if !leading {
-                        <input type="number" min="1" value={(*bid).clone()} oninput={on_bid_input} title="Enchère en dust" />
-                        <button onclick={on_bid}>{ "Enchérir" }</button>
+                        <input type="number" min="1" value={(*bid).clone()} oninput={on_bid_input} title="Bid in dust" />
+                        <button onclick={on_bid}>{ "Bid" }</button>
                     }
                     if listing.buyout_unit_price.is_some() {
-                        <button onclick={on_buyout}>{ "Acheter" }</button>
+                        <button onclick={on_buyout}>{ "Buy" }</button>
                     }
                 }
             </td>

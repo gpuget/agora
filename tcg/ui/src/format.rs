@@ -10,7 +10,7 @@ pub fn dust(amount: Money) -> String {
 pub fn time_left(now: Timestamp, end: Timestamp) -> String {
     let secs = now.until(end).as_secs();
     if secs == 0 {
-        "terminée".into()
+        "ended".into()
     } else {
         format!("{}m {:02}s", secs / 60, secs % 60)
     }
@@ -26,10 +26,10 @@ pub fn card_name(catalog: &[CardEntry], card: &ItemType) -> String {
 
 pub fn rarity_label(rarity: Rarity) -> &'static str {
     match rarity {
-        Rarity::Common => "Commune",
+        Rarity::Common => "Common",
         Rarity::Rare => "Rare",
-        Rarity::Epic => "Épique",
-        Rarity::Legendary => "Légendaire",
+        Rarity::Epic => "Epic",
+        Rarity::Legendary => "Legendary",
     }
 }
 

@@ -50,7 +50,7 @@ fn cloth() -> ItemType {
 
 fn config() -> HouseConfig {
     HouseConfig {
-        name: "Neutre".into(),
+        name: "Neutral".into(),
         commission: Bps(1_500),
         min_increment: Money(1),
         increment: Bps(500),
@@ -75,7 +75,7 @@ fn game() -> Game {
     agora.wallet().set_balance(&alice(), Money(1_000));
     let catalog = StaticCatalog::new(vec![CatalogEntry {
         item_type: cloth(),
-        name: "Étoffe de lin".into(),
+        name: "Linen cloth".into(),
         base_value: Money(13),
         commodity: false,
     }]);
