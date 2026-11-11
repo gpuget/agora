@@ -1,4 +1,5 @@
-//! Server settings, read from a TOML file. Every key is optional.
+//! Server settings, read from a TOML file. Every top-level key is optional except `catalog`.
+//! Inside a house or a catalog entry, every key is required except `commodity`.
 
 use std::collections::BTreeMap;
 use std::io::ErrorKind;

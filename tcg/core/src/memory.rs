@@ -16,10 +16,14 @@ struct CollectorsState {
 }
 
 /// Collectors folded from the collector events of the ledger.
+///
+/// Reads return the state at the last applied event: wrap it in a
+/// [`CaughtUpView`](crate::CaughtUpView) to read every event recorded before the call.
 #[derive(Clone, Default)]
 pub struct InMemoryCollectorProjection(Arc<Mutex<CollectorsState>>);
 
 impl InMemoryCollectorProjection {
+    /// The collector as last projected, `None` if its account is not projected yet.
     pub fn get(&self, id: &PlayerRef) -> Option<Collector> {
         self.0.lock().unwrap().collectors.get(id).cloned()
     }
@@ -97,10 +101,12 @@ impl TreasuryView for InMemoryTreasuryProjection {
     }
 }
 
+/// Catalog fixed at construction.
 #[derive(Clone)]
 pub struct StaticCatalog(Arc<Vec<CardEntry>>);
 
 impl StaticCatalog {
+    /// A catalog of `entries`. [`Catalog::entry`] returns the first entry of a card.
     pub fn new(entries: Vec<CardEntry>) -> Self {
         Self(Arc::new(entries))
     }
@@ -116,6 +122,7 @@ impl Catalog for StaticCatalog {
     }
 }
 
+/// House registry that lists the houses in the order they were added.
 #[derive(Clone, Default)]
 pub struct InMemoryHouseRegistry(Arc<Mutex<Vec<AuctionHouse>>>);
 

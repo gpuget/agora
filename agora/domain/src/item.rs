@@ -7,8 +7,11 @@ use crate::{ItemType, Money};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ItemStack {
     pub item_type: ItemType,
+    /// Number of items. On a listing, the items still on sale: a partial buyout lowers it.
     pub quantity: u32,
     /// Provided by the game.
+    ///
+    /// `true` for a commodity: sold at a fixed buyout price only, can be bought in part.
     #[serde(default)]
     pub commodity: bool,
     /// Value of one item, provided by the game. Used to compute the deposit.

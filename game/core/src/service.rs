@@ -7,6 +7,9 @@ use game_domain::{CatalogEntry, GameError, Player};
 use game_spi::{Catalog, HouseRegistry, PlayerView, TreasuryView};
 use tracing::info;
 
+/// Implements [`GameApi`]. Market use cases go to Agora (`A`); the base value and commodity
+/// flag of a new listing come from the catalog (`C`). Each successful change is logged at
+/// info level.
 pub struct GameService<P, C, H, T, A> {
     players: P,
     catalog: C,
@@ -23,6 +26,7 @@ where
     T: TreasuryView,
     A: AuctionApi,
 {
+    /// `auction` is the Agora core. The other arguments are the game outbound ports.
     pub fn new(players: P, catalog: C, houses: H, treasury: T, auction: A) -> Self {
         Self {
             players,

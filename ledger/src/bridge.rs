@@ -5,6 +5,13 @@ use agora_spi::{Inventory, MoneySink, SinkReason, Wallet};
 
 use crate::{LedgerApi, LedgerError, TakenReason};
 
+/// Adapter that lets the Agora core drive a [`LedgerApi`]. Implements Agora's
+/// [`Inventory`], [`Wallet`] and [`MoneySink`] ports with the same ledger.
+///
+/// Each port call becomes one ledger call with the same [`OpId`], so a call Agora replays
+/// records nothing. [`MoneySink::absorb`] goes to [`LedgerApi::take_money`] and ignores the
+/// house: the treasury keeps one total for all houses. Errors are mapped as described on
+/// [`LedgerError`].
 #[derive(Clone)]
 pub struct AgoraBridge<L>(pub L);
 

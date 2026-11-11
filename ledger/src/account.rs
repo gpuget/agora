@@ -11,15 +11,20 @@ use event_sourcing::Decider;
 
 use crate::LedgerError;
 
+/// Money and items of one owner: a player in the game, a collector in the tcg.
+///
+/// The `check_*` methods tell whether a movement is allowed and change nothing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Account {
     pub id: PlayerRef,
+    /// In the smallest unit of the money of the game: copper in the game, dust in the tcg.
     pub funds: Money,
     /// Only item types held in a quantity greater than zero.
     pub items: BTreeMap<ItemType, u32>,
 }
 
 impl Account {
+    /// An account with `funds` and no items.
     pub fn new(id: PlayerRef, funds: Money) -> Self {
         Self {
             id,
@@ -28,6 +33,8 @@ impl Account {
         }
     }
 
+    /// Sets the quantity held of `item_type`, replacing any previous one. A zero quantity
+    /// changes nothing.
     pub fn with_item(mut self, item_type: ItemType, quantity: u32) -> Self {
         if quantity > 0 {
             self.items.insert(item_type, quantity);
@@ -35,10 +42,12 @@ impl Account {
         self
     }
 
+    /// Quantity held of `item_type`, 0 if none.
     pub fn quantity(&self, item_type: &ItemType) -> u32 {
         self.items.get(item_type).copied().unwrap_or(0)
     }
 
+    /// Fails with [`LedgerError::ItemUnavailable`] if fewer than `quantity` are held.
     pub fn check_withdraw(&self, item_type: &ItemType, quantity: u32) -> Result<(), LedgerError> {
         if self.quantity(item_type) < quantity {
             return Err(LedgerError::ItemUnavailable);
@@ -46,6 +55,7 @@ impl Account {
         Ok(())
     }
 
+    /// Fails with [`LedgerError::Overflow`] if the quantity held would exceed `u32::MAX`.
     pub fn check_deposit(&self, item_type: &ItemType, quantity: u32) -> Result<(), LedgerError> {
         self.quantity(item_type)
             .checked_add(quantity)
@@ -53,6 +63,7 @@ impl Account {
         Ok(())
     }
 
+    /// Fails with [`LedgerError::InsufficientFunds`] if the funds are below `amount`.
     pub fn check_debit(&self, amount: Money) -> Result<(), LedgerError> {
         self.funds
             .checked_sub(amount)
@@ -60,6 +71,7 @@ impl Account {
         Ok(())
     }
 
+    /// Fails with [`LedgerError::Overflow`] if the funds would exceed `u64::MAX`.
     pub fn check_credit(&self, amount: Money) -> Result<(), LedgerError> {
         self.funds
             .checked_add(amount)
@@ -89,6 +101,9 @@ impl Account {
     /// Folds one recorded event into the account. Shared by the aggregate and the read model.
     /// Never fails: `decide` checked the event before it was recorded, so the saturating
     /// operations below never saturate.
+    ///
+    /// Returns `None` until an [`AccountEvent::Opened`] is applied. `Opened` replaces the
+    /// account with its starting funds and items.
     pub fn apply(account: Option<Account>, event: &AccountEvent) -> Option<Account> {
         if let AccountEvent::Opened {
             account,
@@ -137,25 +152,27 @@ impl Account {
     }
 }
 
+/// Command of [`AccountDecider`]. Each command but [`Open`](Self::Open) is a movement that
+/// carries the [`OpId`] of the Agora call.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AccountCommand {
+    /// Opens the account with its starting funds and items. Fails with
+    /// [`LedgerError::AccountExists`] if it is already open.
     Open {
         funds: Money,
         items: BTreeMap<ItemType, u32>,
     },
-    Credit {
-        op: OpId,
-        amount: Money,
-    },
-    Debit {
-        op: OpId,
-        amount: Money,
-    },
+    /// Adds money. See [`Account::check_credit`].
+    Credit { op: OpId, amount: Money },
+    /// Removes money. See [`Account::check_debit`].
+    Debit { op: OpId, amount: Money },
+    /// Adds items. See [`Account::check_deposit`].
     Deposit {
         op: OpId,
         item_type: ItemType,
         quantity: u32,
     },
+    /// Removes items. See [`Account::check_withdraw`].
     Withdraw {
         op: OpId,
         item_type: ItemType,
@@ -163,26 +180,26 @@ pub enum AccountCommand {
     },
 }
 
+/// Event of an account stream. Recorded only once [`Account::check`] accepted it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AccountEvent {
+    /// The account was opened with its starting funds and items.
     Opened {
         account: PlayerRef,
         funds: Money,
         items: BTreeMap<ItemType, u32>,
     },
-    Credited {
-        op: OpId,
-        amount: Money,
-    },
-    Debited {
-        op: OpId,
-        amount: Money,
-    },
+    /// `amount` was added to the funds.
+    Credited { op: OpId, amount: Money },
+    /// `amount` was removed from the funds.
+    Debited { op: OpId, amount: Money },
+    /// `quantity` items of `item_type` were added.
     Deposited {
         op: OpId,
         item_type: ItemType,
         quantity: u32,
     },
+    /// `quantity` items of `item_type` were removed.
     Withdrawn {
         op: OpId,
         item_type: ItemType,
@@ -203,14 +220,21 @@ impl AccountEvent {
     }
 }
 
+/// State folded from one account stream.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AccountState {
     /// `None` until the account is opened.
     pub account: Option<Account>,
+    /// Operation ids already recorded on this stream. A command with one of them records
+    /// nothing.
     pub applied: BTreeSet<OpId>,
 }
 
 /// One stream per player, identified by its [`PlayerRef`].
+///
+/// For a movement, `decide` checks in order: the account is open (else [`LedgerError::UnknownAccount`]),
+/// the [`OpId`] is not applied yet (else no event and no error), then [`Account::check`].
+/// So a replayed movement succeeds even if it would now fail.
 pub struct AccountDecider;
 
 impl Decider for AccountDecider {

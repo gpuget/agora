@@ -5,6 +5,10 @@ use game_spi::{PlayerView, TreasuryView};
 
 /// A read model that catches up with its event store on every read, so it never lags
 /// behind the events recorded before the call.
+///
+/// Implements [`PlayerView`] and [`TreasuryView`] when the projection `P` does. Store
+/// errors raised while catching up are returned as [`GameError::Conflict`] or
+/// [`GameError::Storage`].
 pub struct CaughtUpView<S, P, I, E>(Projector<S, P, I, E>);
 
 impl<S, P, I, E> CaughtUpView<S, P, I, E>
@@ -14,6 +18,7 @@ where
     I: Send + Sync,
     E: Send + Sync,
 {
+    /// A view that feeds `projection` from the global log of `store`.
     pub fn new(store: S, projection: P) -> Self {
         Self(Projector::new(store, projection))
     }

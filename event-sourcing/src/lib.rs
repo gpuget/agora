@@ -1,5 +1,13 @@
 //! Event sourcing, independent of any domain: aggregates as [`Decider`]s, the [`EventStore`]
 //! port that records their events, and [`Projection`]s fed from its global log.
+//!
+//! Write side: [`execute`] runs a command on one aggregate with optimistic concurrency.
+//! Read side: a [`Projector`] feeds a [`Projection`] from [`EventStore::read_all`].
+//!
+//! Not part of the Agora hexagon. In this workspace the `ledger` crate defines its
+//! aggregates as deciders, and `game-core` and `tcg-core` keep projections of the ledger.
+//!
+//! Feature `memory`: enables the `memory` module, an in-memory [`EventStore`].
 
 use std::future::Future;
 use std::marker::PhantomData;
@@ -18,9 +26,13 @@ const BATCH: usize = 256;
 pub trait Decider {
     /// Identifies the event stream of one aggregate.
     type Id: Send + Sync;
+    /// Request to change the aggregate.
     type Command: Send + Sync;
+    /// Fact recorded in the stream.
     type Event: Clone + Send + Sync;
+    /// State folded from the events. `Default` is the state of an empty stream.
     type State: Default + Send;
+    /// Rejection of a command. [`execute`] also needs it to wrap a [`StoreError`].
     type Error;
 
     /// Events to record for `command`. Empty when the command was already applied.
@@ -34,11 +46,13 @@ pub trait Decider {
     fn evolve(state: Self::State, event: &Self::Event) -> Self::State;
 }
 
+/// Failure of an [`EventStore`] or a [`Projection`].
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum StoreError {
     /// The event stream changed since it was loaded.
     #[error("concurrent change, retry")]
     Conflict,
+    /// Any other storage failure.
     #[error("storage error: {0}")]
     Storage(String),
 }
@@ -48,6 +62,7 @@ pub enum StoreError {
 pub struct Recorded<I, E> {
     /// Position in the global log, starting at 1.
     pub position: u64,
+    /// Stream the event belongs to.
     pub stream: I,
     pub event: E,
 }
@@ -91,6 +106,11 @@ pub trait Projection<I, E>: Send + Sync {
 /// Runs `command` on the aggregate of stream `id`: loads its events, folds them, decides and
 /// appends the new events if no other write happened in between. Retries on conflict.
 /// Returns the recorded events, empty when the command was already applied.
+///
+/// # Errors
+///
+/// The error of [`Decider::decide`], or a [`StoreError`] converted into `D::Error`.
+/// [`StoreError::Conflict`] after 3 attempts that all lost the race.
 pub async fn execute<D, S>(
     store: &S,
     id: &D::Id,
@@ -132,6 +152,7 @@ where
     I: Send + Sync,
     E: Send + Sync,
 {
+    /// Feeds `projection` from `store`.
     pub fn new(store: S, projection: P) -> Self {
         Self {
             store,
@@ -140,11 +161,15 @@ where
         }
     }
 
+    /// The projection, to read the model.
     pub fn projection(&self) -> &P {
         &self.projection
     }
 
     /// Applies every event recorded since the checkpoint of the projection. Returns how many.
+    ///
+    /// Reads the log in batches of 256 events until none is left. Stops at the first error;
+    /// the batches applied before it stay applied.
     pub async fn catch_up(&self) -> Result<usize, StoreError> {
         let mut applied = 0;
         loop {

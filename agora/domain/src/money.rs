@@ -8,16 +8,20 @@ use serde::{Deserialize, Serialize};
 pub struct Money(pub u64);
 
 impl Money {
+    /// No money.
     pub const ZERO: Money = Money(0);
 
+    /// `self + other`, `None` on overflow.
     pub fn checked_add(self, other: Money) -> Option<Money> {
         self.0.checked_add(other.0).map(Money)
     }
 
+    /// `self - other`, `None` if `other` is greater than `self`.
     pub fn checked_sub(self, other: Money) -> Option<Money> {
         self.0.checked_sub(other.0).map(Money)
     }
 
+    /// `self * factor`, `None` on overflow. Turns a unit price into a total.
     pub fn checked_mul(self, factor: u64) -> Option<Money> {
         self.0.checked_mul(factor).map(Money)
     }
@@ -37,6 +41,7 @@ impl Money {
 pub struct Bps(pub u32);
 
 impl Bps {
+    /// 100 %. Upper bound of a commission.
     pub const MAX: Bps = Bps(10_000);
 }
 

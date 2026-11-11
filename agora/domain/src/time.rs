@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Timestamp(pub u64);
 
 impl Timestamp {
+    /// `self + duration`, `None` on overflow.
     pub fn checked_add(self, duration: Duration) -> Option<Timestamp> {
         let millis = u64::try_from(duration.as_millis()).ok()?;
         self.0.checked_add(millis).map(Timestamp)

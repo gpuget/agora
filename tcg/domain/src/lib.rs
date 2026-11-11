@@ -15,6 +15,7 @@ use thiserror::Error;
 /// Identifies a card of the catalog. Copies of a card are interchangeable.
 pub type CardId = ItemType;
 
+/// Rarity of a card, from the most common to the rarest. Sets the base value of the card.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Rarity {
     Common,
@@ -34,26 +35,36 @@ impl fmt::Display for Rarity {
     }
 }
 
+/// A card of the catalog. Only cards of the catalog can be sold.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CardEntry {
     pub card: CardId,
+    /// Display name.
     pub name: String,
     pub rarity: Rarity,
     /// Value of one copy, set by its rarity. The game is the only source of this value.
+    ///
+    /// In dust. Agora computes the deposit of a listing from it.
     pub base_value: Money,
 }
 
+/// A collector: its ledger [`Account`], dust as funds and copies held by card.
 pub type Collector = Account;
 
+/// Failure of a trading card game use case.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum TcgError {
+    /// The card is not in the catalog.
     #[error("unknown card {0}")]
     UnknownCard(CardId),
+    /// Rejected or failed in Agora. Ledger failures reach the game through this variant, as
+    /// [`AuctionError::Port`].
     #[error(transparent)]
     Auction(#[from] AuctionError),
     /// The event stream changed since it was loaded.
     #[error("concurrent change, retry")]
     Conflict,
+    /// The event store failed.
     #[error("storage error: {0}")]
     Storage(String),
 }

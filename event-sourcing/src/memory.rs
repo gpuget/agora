@@ -11,6 +11,7 @@ struct Log<I, E> {
     all: Vec<Recorded<I, E>>,
 }
 
+/// [`EventStore`] behind a mutex. Never fails with [`StoreError::Storage`].
 pub struct InMemoryEventStore<I, E>(Arc<Mutex<Log<I, E>>>);
 
 impl<I, E> Default for InMemoryEventStore<I, E> {

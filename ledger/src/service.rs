@@ -8,6 +8,11 @@ use crate::{
 };
 
 /// Applies the money and item movements requested by the auction house, as events.
+///
+/// Implements [`LedgerApi`]. Account events go to store `A`, one stream per player. Treasury
+/// events go to store `T`, in the single [`TreasuryId`] stream. Each call runs
+/// [`event_sourcing::execute`]: load the stream, decide, append, retry on a concurrent
+/// append.
 #[derive(Clone)]
 pub struct LedgerService<A, T> {
     accounts: A,
@@ -19,6 +24,8 @@ where
     A: EventStore<PlayerRef, AccountEvent>,
     T: EventStore<TreasuryId, TreasuryEvent>,
 {
+    /// A ledger that records account events in `accounts` and treasury events in
+    /// `treasury`. Accounts must be opened with [`LedgerApi::open_account`] before use.
     pub fn new(accounts: A, treasury: T) -> Self {
         Self { accounts, treasury }
     }

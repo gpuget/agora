@@ -10,6 +10,9 @@ use tracing::info;
 /// A listing always holds one copy of a card: the game never sells more than one at a time.
 const COPIES_PER_LISTING: u32 = 1;
 
+/// Implements [`TcgApi`]. Market use cases go to Agora (`A`); the base value of a new
+/// listing comes from the catalog (`C`). Every listing holds one copy and is never a
+/// commodity. Each successful change is logged at info level.
 pub struct TcgService<P, C, H, T, A> {
     collectors: P,
     catalog: C,
@@ -26,6 +29,7 @@ where
     T: TreasuryView,
     A: AuctionApi,
 {
+    /// `auction` is the Agora core. The other arguments are the game outbound ports.
     pub fn new(collectors: P, catalog: C, houses: H, treasury: T, auction: A) -> Self {
         Self {
             collectors,

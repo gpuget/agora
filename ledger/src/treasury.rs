@@ -18,8 +18,11 @@ impl fmt::Display for TreasuryId {
     }
 }
 
+/// Command of [`TreasuryDecider`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TreasuryCommand {
+    /// Records `amount` as taken out of the game. Fails with [`LedgerError::Overflow`] if
+    /// the total would exceed `u64::MAX`.
     TakeMoney {
         op: OpId,
         amount: Money,
@@ -27,8 +30,10 @@ pub enum TreasuryCommand {
     },
 }
 
+/// Event of the treasury stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TreasuryEvent {
+    /// `amount` left the game for `reason`.
     MoneyTaken {
         op: OpId,
         amount: Money,
@@ -36,12 +41,19 @@ pub enum TreasuryEvent {
     },
 }
 
+/// State folded from the treasury stream.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TreasuryState {
+    /// Sum of every [`TreasuryEvent::MoneyTaken`] amount.
     pub total: Money,
+    /// Operation ids already recorded. A command with one of them records nothing.
     pub applied: BTreeSet<OpId>,
 }
 
+/// The treasury aggregate: the money taken out of the game by every auction house. Its
+/// single stream is identified by [`TreasuryId`].
+///
+/// A command whose [`OpId`] is already applied records nothing.
 pub struct TreasuryDecider;
 
 impl Decider for TreasuryDecider {

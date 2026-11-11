@@ -39,7 +39,7 @@ pub fn router(game: Arc<Game>) -> Router {
         .route("/api/listings/{id}/cancel", post(cancel))
         .with_state(game)
         // Spans at INFO so core logs carry the method and uri. Responses at DEBUG:
-        // the ui polls every 2 seconds.
+        // the ui polls every second.
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

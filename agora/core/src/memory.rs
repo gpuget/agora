@@ -1,4 +1,6 @@
 //! In-memory adapters, for tests and demos. State is lost on restart.
+//!
+//! The inventory, wallet and sink ignore the [`OpId`]: a replayed call is applied again.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -11,6 +13,8 @@ use agora_domain::{
 };
 use agora_spi::{AuctionRepository, Clock, Inventory, MoneySink, RepoError, SinkReason, Wallet};
 
+/// Houses and listings in hash maps. `update_listing` checks the version and fails with
+/// [`RepoError::Other`] for an unknown listing. Inserts replace an entry with the same id.
 #[derive(Default)]
 pub struct InMemoryAuctionRepository {
     houses: Mutex<HashMap<HouseId, AuctionHouse>>,
@@ -111,6 +115,7 @@ pub struct InMemoryInventory {
 }
 
 impl InMemoryInventory {
+    /// Adds `quantity` items of `item_type` to the player.
     pub fn give(&self, player: &PlayerRef, item_type: &ItemType, quantity: u32) {
         *self
             .stacks
@@ -120,6 +125,7 @@ impl InMemoryInventory {
             .or_default() += quantity;
     }
 
+    /// Items of `item_type` held by the player, 0 if none.
     pub fn count(&self, player: &PlayerRef, item_type: &ItemType) -> u32 {
         self.stacks
             .lock()
@@ -157,16 +163,19 @@ impl Inventory for InMemoryInventory {
     }
 }
 
+/// Balances by player. An unknown player has a balance of zero.
 #[derive(Default)]
 pub struct InMemoryWallet {
     balances: Mutex<HashMap<PlayerRef, Money>>,
 }
 
 impl InMemoryWallet {
+    /// Replaces the balance of the player.
     pub fn set_balance(&self, player: &PlayerRef, amount: Money) {
         self.balances.lock().unwrap().insert(player.clone(), amount);
     }
 
+    /// Balance of the player.
     pub fn balance(&self, player: &PlayerRef) -> Money {
         self.balances
             .lock()
@@ -204,10 +213,12 @@ pub struct RecordingMoneySink {
 }
 
 impl RecordingMoneySink {
+    /// Every call received, in order.
     pub fn records(&self) -> Vec<(HouseId, Money, SinkReason)> {
         self.records.lock().unwrap().clone()
     }
 
+    /// Sum of every amount received.
     pub fn total(&self) -> Money {
         Money(
             self.records
@@ -237,10 +248,16 @@ impl MoneySink for RecordingMoneySink {
 pub struct ManualClock(AtomicU64);
 
 impl ManualClock {
+    /// A clock showing `start`.
     pub fn new(start: Timestamp) -> Self {
         Self(AtomicU64::new(start.0))
     }
 
+    /// Moves the clock forward by `duration`.
+    ///
+    /// # Panics
+    ///
+    /// If `duration` in milliseconds does not fit in a `u64`.
     pub fn advance(&self, duration: Duration) {
         let millis = u64::try_from(duration.as_millis()).expect("duration fits in u64 millis");
         self.0.fetch_add(millis, Ordering::SeqCst);

@@ -12,6 +12,13 @@ const MAX_ATTEMPTS: usize = 3;
 const SETTLE_BATCH: u32 = 100;
 const MAX_PAGE: u32 = 100;
 
+/// The auction use cases, generic over the outbound ports: repository `R`, inventory `I`,
+/// wallet `W`, sink `S` and clock `C`.
+///
+/// Holds no state of its own. Every call that moves money or items carries an
+/// [`OpId`]: fresh for each attempt of a use case, derived from the listing id and version
+/// for the effects of a saved listing change, derived from the undone call for a
+/// compensation.
 pub struct AuctionService<R, I, W, S, C> {
     repository: R,
     inventory: I,
@@ -28,6 +35,7 @@ where
     S: MoneySink,
     C: Clock,
 {
+    /// Wires the service to its outbound ports.
     pub fn new(repository: R, inventory: I, wallet: W, sink: S, clock: C) -> Self {
         Self {
             repository,
@@ -38,22 +46,27 @@ where
         }
     }
 
+    /// The repository port. With the accessors below, lets tests inspect in-memory adapters.
     pub fn repository(&self) -> &R {
         &self.repository
     }
 
+    /// The inventory port.
     pub fn inventory(&self) -> &I {
         &self.inventory
     }
 
+    /// The wallet port.
     pub fn wallet(&self) -> &W {
         &self.wallet
     }
 
+    /// The sink port.
     pub fn sink(&self) -> &S {
         &self.sink
     }
 
+    /// The clock port.
     pub fn clock(&self) -> &C {
         &self.clock
     }
