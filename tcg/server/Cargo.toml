@@ -2,6 +2,9 @@
 name = "tcg-server"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "HTTP server of the Agora demo trading card game"
 
 [dependencies]
 agora-domain.workspace = true

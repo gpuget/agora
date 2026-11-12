@@ -2,6 +2,9 @@
 name = "agora-api"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Inbound ports of Agora: the use cases of the auction core"
 
 [dependencies]
 agora-domain.workspace = true

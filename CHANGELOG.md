@@ -4,6 +4,14 @@ Notable changes of the workspace. The format follows [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-12
+
+### Added
+
+- `LICENSE`: the code is released under the BSD Zero Clause License (0BSD). Anyone may use, copy, modify and distribute it for any purpose, with no obligation to credit the author. All crates declare `license = "0BSD"`.
+- Cargo metadata: every crate declares `license`, `description` and `rust-version = "1.88"`.
+- README: one-sentence summary of the architecture, with a link to `docs/architecture.md`, and a License section.
+
 ## [0.3.0] - 2026-11-11
 
 ### Added

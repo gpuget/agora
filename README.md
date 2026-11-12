@@ -2,6 +2,8 @@
 
 Auction house that any game can plug in. Players sell, bid and buy through their game; Agora holds items and money in escrow and settles the sales. Two demo games trade on it: `game` (gold and stacks of items) and `tcg` (a trading card game with dust and cards).
 
+Architecture in one sentence: Agora is a hexagonal auction core that reaches games, storage and clock only through ports, with the money and items of each game kept in an event-sourced ledger. See [docs/architecture.md](docs/architecture.md).
+
 Status: prototype. State is kept in memory only.
 
 ## Where to start
@@ -33,3 +35,7 @@ trunk serve
 ```
 
 Then open <http://127.0.0.1:3000>. Details and prerequisites: [docs/getting-started.md](docs/getting-started.md).
+
+## License
+
+[0BSD](LICENSE): use it for any purpose, no attribution required.

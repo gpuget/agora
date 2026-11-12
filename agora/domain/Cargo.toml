@@ -2,6 +2,9 @@
 name = "agora-domain"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Types and pure rules of the Agora auction domain"
 
 [dependencies]
 serde.workspace = true

@@ -2,6 +2,9 @@
 name = "tcg-domain"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Domain of the Agora demo trading card game: collectors, dust, cards and catalog"
 
 [dependencies]
 agora-domain.workspace = true

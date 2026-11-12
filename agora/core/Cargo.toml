@@ -2,6 +2,9 @@
 name = "agora-core"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Agora auction core: escrow, bids, buyouts and settlement, with in-memory adapters"
 
 [features]
 # In-memory adapters: repository, fake ports and a manual clock.
