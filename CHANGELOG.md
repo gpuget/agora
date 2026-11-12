@@ -4,7 +4,7 @@ Notable changes of the workspace. The format follows [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [0.4.1] - 2026-11-12
+## [0.3.1] - 2026-11-12
 
 ### Added
 
